@@ -1,0 +1,73 @@
+MIT License
+
+Copyright (c) 2026 ORSEP / rasfem contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-------------------------------------------------------------------------------
+DISCLAIMER — LIMITATION OF LIABILITY / EXENCIÓN DE RESPONSABILIDAD
+-------------------------------------------------------------------------------
+
+This software is a research and educational tool. It is provided solely as an
+aid to analysis and does NOT replace the professional judgement of a licensed
+engineer.
+
+THE AUTHORS, CONTRIBUTORS, AND AFFILIATED ORGANISATIONS EXPRESSLY DISCLAIM ALL
+LIABILITY — INCLUDING, BUT NOT LIMITED TO, LIABILITY FOR DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, CONSEQUENTIAL, OR PUNITIVE DAMAGES — ARISING
+FROM THE USE OF, MISUSE OF, OR INABILITY TO USE THIS SOFTWARE, ITS OUTPUTS, OR
+ANY CONCLUSIONS DRAWN FROM THOSE OUTPUTS. THIS DISCLAIMER APPLIES REGARDLESS OF
+THE THEORY OF LIABILITY (CONTRACT, TORT, NEGLIGENCE, STRICT LIABILITY, OR
+OTHERWISE) AND EVEN IF THE AUTHORS HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGES.
+
+THE ENTIRE RISK AS TO THE QUALITY, ACCURACY, AND FITNESS FOR ANY PARTICULAR
+PURPOSE OF THE SOFTWARE AND ITS RESULTS RESTS WITH THE USER. ANY DECISION —
+ENGINEERING, STRUCTURAL, SAFETY-RELATED, REGULATORY, LEGAL, OR OTHERWISE —
+MADE ON THE BASIS OF RESULTS PRODUCED BY THIS SOFTWARE IS THE SOLE
+RESPONSIBILITY OF THE PERSON OR ORGANISATION MAKING THAT DECISION.
+
+By downloading, installing, or using this software in any way, the user
+acknowledges and agrees to the terms of this disclaimer.
+
+-------------------------------------------------------------------------------
+DESCARGO DE RESPONSABILIDAD (versión en español)
+-------------------------------------------------------------------------------
+
+Este software es una herramienta de investigación y formación académica. Se
+provee únicamente como apoyo al análisis y NO reemplaza el criterio profesional
+de un ingeniero habilitado.
+
+LOS AUTORES, COLABORADORES Y ORGANIZACIONES VINCULADAS RECHAZAN EXPRESAMENTE
+TODA RESPONSABILIDAD — INCLUYENDO, SIN LIMITACIÓN, DAÑOS DIRECTOS, INDIRECTOS,
+INCIDENTALES, ESPECIALES, CONSECUENTES O PUNITIVOS — QUE DERIVE DEL USO,
+MAL USO O IMPOSIBILIDAD DE USO DE ESTE SOFTWARE, SUS RESULTADOS O CUALQUIER
+CONCLUSIÓN OBTENIDA A PARTIR DE ELLOS. ESTE DESCARGO SE APLICA
+INDEPENDIENTEMENTE DE LA TEORÍA DE RESPONSABILIDAD (CONTRATO, AGRAVIO,
+NEGLIGENCIA, RESPONSABILIDAD OBJETIVA U OTRA) Y AUN CUANDO LOS AUTORES HAYAN
+SIDO INFORMADOS DE LA POSIBILIDAD DE TALES DAÑOS.
+
+EL RIESGO TOTAL RELATIVO A LA CALIDAD, EXACTITUD E IDONEIDAD DEL SOFTWARE Y SUS
+RESULTADOS RECAE ÍNTEGRAMENTE EN EL USUARIO. CUALQUIER DECISIÓN —DE INGENIERÍA,
+ESTRUCTURAL, DE SEGURIDAD, REGULATORIA, LEGAL O DE CUALQUIER OTRA ÍNDOLE—
+ADOPTADA EN BASE A LOS RESULTADOS DE ESTE SOFTWARE ES RESPONSABILIDAD EXCLUSIVA
+DE LA PERSONA U ORGANIZACIÓN QUE LA TOME.
+
+Al descargar, instalar o utilizar este software de cualquier forma, el usuario
+reconoce y acepta los términos de este descargo.

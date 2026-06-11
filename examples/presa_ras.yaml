@@ -1,0 +1,91 @@
+# =====================================================================
+# Presa de gravedad - ensayo de overtopping (control por nivel de agua)
+# Gravity dam - overtopping test (water-level / load control)
+#
+# Reproduce el caso de examples/legacy/presa_ras.py
+# Unidades internas en mm y N (gamma en N/mm3, niveles en mm).
+#
+# RAS congelada equivalente a 16 anios (xi impuesto = 0.70).
+# Para la presa SANA: poner ras.enabled = false  (o xi_imposed = 0.0).
+# =====================================================================
+name: presa_ras
+
+problem:
+  element_type: t3
+  problem_type: plane_strain
+  thickness: 1000.0          # mm (1 m fuera del plano)
+  strain_shear_factor: 0.5   # deformacion tensorial (convencion de la presa)
+
+material:
+  E0: 22000.0                # MPa
+  nu: 0.20
+  ft0: 2.10                  # MPa
+  fc0: 21.0                  # MPa (no se usa: dano de compresion off)
+  Gf0: 0.300                 # N/mm
+  Gc0: 10.0
+  damage_max: 0.9995
+  enable_compression_damage: false
+  softening_law: linear             # ley de ablandamiento lineal (presa_ras legacy)
+
+ras:
+  enabled: true
+  mode: imposed
+  xi_imposed: 0.70           # equivalente a ~16 anios de servicio
+  eps_inf_vol: 0.00289
+  linear_divisor: 3.0
+  expansion_scale: 0.03      # expansion suave controlada
+  activity_power: 1.0
+  beta_E: 0.200143
+  beta_ft: 0.200429
+  beta_fc: 0.10
+  beta_Gf: 0.071429
+  E_min_factor: 0.70
+  ft_min_factor: 0.65
+  fc_min_factor: 0.70
+  Gf_min_factor: 0.95
+
+geometry:
+  kind: polygon
+  # Vertices en mm (antihorario desde inferior izquierdo). 1 m = 1000 mm.
+  vertices:
+    - [0.0,      0.0]        # P1
+    - [70000.0,  0.0]        # P2
+    - [19200.0,  66000.0]    # P3
+    - [14800.0,  103000.0]   # P4
+    - [0.0,      103000.0]   # P5 (coronamiento, paramento aguas arriba)
+  mesh_size: 2000.0          # mm (2 m). Tamaño del ejemplo legacy.
+  height: 103000.0           # mm
+
+loading:
+  mode: hydraulic
+  gamma_c: 2.40e-5           # N/mm3 hormigon
+  gamma_w: 9.81e-6           # N/mm3 agua
+  h_start: 92000.0           # mm (92 m)
+  h_target: 120000.0         # mm (120 m)
+  dh_initial: 500.0          # mm
+  dh_min: 20.0
+  dh_max: 500.0
+  max_accepted_steps: 600
+
+solver:
+  tangent_mode: numerical_hybrid
+  max_iter: 30
+  tol_res_abs: 1.0e-3
+  tol_res_rel: 1.0e-5
+  use_line_search: false
+  min_stiff_factor: 1.0e-6
+  backend: auto
+
+service:
+  service_years: 16             # 0 = presa sana; 16 = caso RAS
+  dt_days: 3.0                  # paso temporal de la etapa de servicio
+  h_service_max: 92000.0        # mm - nivel máximo anual durante servicio
+  h_service_min: 37000.0        # mm - nivel mínimo anual durante servicio
+  xi_target: 0.70               # xi al final de 16 años
+  xi_rate: 3.0                  # tasa de crecimiento exponencial de xi
+
+output:
+  dir: resultados_rasfem
+  dpi: 200
+  save_figures: true
+  save_tables: true

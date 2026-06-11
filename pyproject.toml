@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rasfem"
+version = "0.1.0"
+description = "Open-source 2D FEM tool for concrete affected by Alkali-Silica Reaction (ASR/RAS): scalar damage + ASR expansion and degradation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "ORSEP / RAS-FEM contributors" },
+]
+keywords = ["FEM", "concrete", "ASR", "RAS", "alkali-silica", "damage", "civil-engineering"]
+dependencies = [
+    "numpy>=1.23",
+    "scipy>=1.9",
+    "matplotlib>=3.6",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+numba = ["numba>=0.58"]
+gpu = ["cupy-cuda12x>=12.0"]
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.27"]
+report = ["matplotlib>=3.6"]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+rasfem = "rasfem.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rasfem*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]

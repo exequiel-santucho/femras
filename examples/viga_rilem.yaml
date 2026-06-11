@@ -1,0 +1,77 @@
+# =====================================================================
+# Viga entallada tipo RILEM (flexión en 3 puntos, control por desplazamiento)
+# Notched RILEM-type beam (three-point bending, displacement control)
+#
+# Reproduce el caso de examples/legacy/viga_rilem.py
+# Hormigón R4, ley de Larive, edad 300 días.
+# =====================================================================
+name: viga_rilem
+
+problem:
+  element_type: q4
+  problem_type: plane_stress
+  thickness: 75.0          # mm
+  strain_shear_factor: 1.0
+
+material:
+  E0: 38100.0              # MPa  (de G=15875, nu=0.20 -> E=2G(1+nu))
+  nu: 0.20
+  ft0: 4.0                 # MPa
+  fc0: 51.2                # MPa
+  Gf0: 0.10                # N/mm
+  Gc0: 10.0                # N/mm
+  damage_max: 0.99999
+  enable_compression_damage: false
+
+ras:
+  enabled: true
+  mode: larive
+  age_days: 300.0
+  tau_lat: 188.83
+  tau_ch: 161.89
+  eps_inf_vol: 0.0042
+  linear_divisor: 3.0
+  expansion_scale: 1.0
+  activity_power: 1.0
+  beta_E: 0.25
+  beta_ft: 0.45
+  beta_fc: 0.15
+  beta_Gf: 0.55
+
+geometry:
+  kind: beam
+  L: 430.0                 # mm
+  H: 105.0                 # mm
+  nx: 86
+  ny: 21
+  notch_width: 3.0
+  notch_height: 52.5
+  support_span: 400.0
+
+loading:
+  mode: displacement
+  x_center: 215.0          # centro de la luz (L/2)
+  y_top: 105.0             # borde superior (= H)
+  patch: three_nodes_centered
+  target: -0.20            # desplazamiento impuesto final [mm]
+  step_initial: -0.0010
+  step_min: -0.000010
+  step_max: -0.0015
+  grow_factor: 1.10
+  shrink_factor: 0.5
+  max_accepted_steps: 600
+
+solver:
+  tangent_mode: numerical_hybrid
+  max_iter: 60
+  tol_res_abs: 1.0e-4
+  tol_res_rel: 1.0e-5
+  use_line_search: true
+  min_stiff_factor: 1.0e-8
+  backend: auto
+
+output:
+  dir: resultados_rasfem
+  dpi: 200
+  save_figures: true
+  save_tables: true

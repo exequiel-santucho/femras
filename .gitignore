@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Tests / coverage
+.pytest_cache/
+_pytest_tmp/
+htmlcov/
+.coverage
+coverage.xml
+
+# Results (generated at runtime)
+resultados_rasfem/
+examples/legacy/temp_sana/
+examples/legacy/temp*/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
