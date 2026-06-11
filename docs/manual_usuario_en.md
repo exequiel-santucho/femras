@@ -238,6 +238,49 @@ rasfem validate my_examples/viga_rilem.yaml
 Prints all resolved parameters with their default values — useful to catch YAML
 syntax errors before launching a long analysis.
 
+### 5.5 Choosing the compute backend (numpy / numba / gpu)
+
+The backend controls how the linear system is solved and the stiffness matrix
+is assembled. It is set **inside the YAML file**, under the `solver` section:
+
+```yaml
+solver:
+  backend: numpy    # options: numpy | numba | gpu | auto
+```
+
+| Backend | When to use | Extra requirement |
+|---|---|---|
+| `numpy` | Always available. For testing and small meshes. | None |
+| `numba` | Long analyses on desktop CPUs (parallel JIT assembly). First run takes ~2 s extra to compile. | `pip install -e ".[numba]"` |
+| `gpu` | Very large meshes (≥ 50 000 DOF). No benefit for small meshes. | NVIDIA GPU + CUDA 12, then `pip install -e ".[gpu]"` |
+| `auto` | Automatically picks the best available (gpu if large mesh + CuPy, else numba, else numpy). | — |
+
+**How to change the backend for an example without editing the original YAML?**
+
+Copy the file and change only the backend line:
+
+```bash
+# Copy the beam example
+copy my_examples\viga_rilem.yaml my_examples\beam_numba.yaml
+```
+
+Open `my_examples/beam_numba.yaml` in any text editor and add or change:
+
+```yaml
+solver:
+  backend: numba
+```
+
+Then run as usual:
+
+```bash
+rasfem run my_examples/beam_numba.yaml
+```
+
+> **Tip:** `backend: auto` is the most practical choice for everyday use — it
+> will use the best available backend without you having to remember what you
+> installed.
+
 ---
 
 ## 6. Local web app

@@ -186,7 +186,7 @@ pip install -e ".[web]"
 pip install -e ".[gpu]"
 
 # Todo junto:
-pip install -e ".[numba,web]"
+pip install -e ".[numba,web,gpu]"
 ```
 
 ---
@@ -241,6 +241,49 @@ rasfem validate mis_ejemplos/viga_rilem.yaml
 
 Imprime todos los parámetros del análisis resueltos con sus valores por defecto,
 útil para verificar que el archivo YAML está bien escrito.
+
+### 5.5 Elegir el backend de cómputo (numpy / numba / gpu)
+
+El backend controla cómo se resuelve el sistema lineal y se ensambla la matriz
+de rigidez. Se configura **dentro del archivo YAML**, en la sección `solver`:
+
+```yaml
+solver:
+  backend: numpy    # opciones: numpy | numba | gpu | auto
+```
+
+| Backend | Cuándo usarlo | Requisito extra |
+|---|---|---|
+| `numpy` | Siempre disponible. Para pruebas y mallas pequeñas. | Ninguno |
+| `numba` | Análisis largos en PC de escritorio (ensamblaje JIT paralelo). Primera corrida tarda ~2 s extra en compilar. | `pip install -e ".[numba]"` |
+| `gpu` | Mallas muy grandes (≥ 50 000 GDL). Sin malla grande no hay ganancia. | GPU NVIDIA + CUDA 12, luego `pip install -e ".[gpu]"` |
+| `auto` | Detecta automáticamente el mejor disponible (gpu si hay malla grande + CuPy, si no numba, si no numpy). | — |
+
+**¿Cómo cambiar el backend de un ejemplo sin editar el YAML original?**
+
+Copiá el archivo y modificá solo la línea del backend:
+
+```bash
+# Copiar el ejemplo de la viga
+copy mis_ejemplos\viga_rilem.yaml mis_ejemplos\viga_numba.yaml
+```
+
+Abrí `mis_ejemplos/viga_numba.yaml` con cualquier editor de texto y cambiá o
+agregá al final:
+
+```yaml
+solver:
+  backend: numba
+```
+
+Luego corré normalmente:
+
+```bash
+rasfem run mis_ejemplos/viga_numba.yaml
+```
+
+> **Tip:** `backend: auto` es la opción más práctica para uso diario — usará
+> lo mejor disponible sin que tengas que recordar qué instalaste.
 
 ---
 

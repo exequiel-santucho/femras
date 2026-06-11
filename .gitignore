@@ -26,6 +26,11 @@ resultados_rasfem/
 examples/legacy/temp_sana/
 examples/legacy/temp*/
 
+# User working folders created with "rasfem examples <dir>"
+examples_rasfem/
+mis_ejemplos/
+my_examples/
+
 # OS
 .DS_Store
 Thumbs.db
