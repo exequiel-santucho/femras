@@ -39,8 +39,8 @@ $d \in [0,1]$:
 
 $$\boldsymbol{\sigma} = (1-d)\,\mathbf{C}(E_\text{eff},\nu)\,\boldsymbol{\varepsilon}_\text{mec}$$
 
-donde $\mathbf{C}$ es la matriz elástica lineal (tensión o deformación plana) y $E_\text{eff}$
-el módulo degradado por la RAS (sección 5).
+donde $\mathbf{C}$ es la matriz elástica lineal (tensión o deformación plana) y
+$E_\text{eff}$ el módulo degradado por la RAS (sección 5).
 
 ## 4. Expansión por RAS / ASR expansion
 
@@ -50,14 +50,15 @@ deformación térmica:
 $$\boldsymbol{\varepsilon}_\text{RAS} = \xi\,\varepsilon_\text{RAS}^\infty\begin{bmatrix}1\\1\\0\end{bmatrix}$$
 
 - $\xi(t) \in [0,1]$ es el **grado de avance** de la reacción.
-- $\varepsilon_\text{RAS}^\infty = \texttt{expansion\_scale} \times \varepsilon_{\infty,\text{vol}} / \texttt{linear\_divisor}$
-  es la deformación lineal última (por hipótesis isótropa, $\texttt{linear\_divisor} = 3$).
+- $\varepsilon_\text{RAS}^\infty$ es la deformación lineal última, calculada como
+  `expansion_scale × eps_inf_vol / linear_divisor` (por hipótesis isótropa,
+  `linear_divisor = 3`).
 
 ### Ley temporal de $\xi$ / temporal law
 
 **Larive (sigmoide):**
 
-$$\xi(t) = \frac{1 - \exp(-t/\tau_\text{ch})}{1 + \exp\!\left(-\dfrac{t - \tau_\text{lat}}{\tau_\text{ch}}\right)}$$
+$$\xi(t) = \frac{1 - \exp(-t/\tau_\text{ch})}{1 + \exp\left(-\dfrac{t - \tau_\text{lat}}{\tau_\text{ch}}\right)}$$
 
 con $\tau_\text{lat}$ (tiempo de latencia) y $\tau_\text{ch}$ (tiempo característico).
 
@@ -70,13 +71,14 @@ También puede **imponerse** $\xi$ directamente (`mode: imposed`).
 Las propiedades evolucionan con la actividad $a(\xi) = \xi^p$ (por defecto $p=1$):
 
 $$\begin{aligned}
-E_\text{eff} &= \max\!\bigl(E_0\,(1-\beta_E\,a),\; E_0\,f_{E,\min}\bigr)\\[4pt]
-f_{t,\text{eff}} &= \max\!\bigl(f_{t0}\,(1-\beta_{ft}\,a),\; f_{t0}\,f_{ft,\min}\bigr)\\[4pt]
-f_{c,\text{eff}} &= \max\!\bigl(f_{c0}\,(1-\beta_{fc}\,a),\; f_{c0}\,f_{fc,\min}\bigr)\\[4pt]
-G_{f,\text{eff}} &= \max\!\bigl(G_{f0}\,(1-\beta_{Gf}\,a),\; G_{f0}\,f_{Gf,\min}\bigr)
+E_\text{eff} &= \max\bigl(E_0\,(1-\beta_E\,a),\; E_0\,f_{E,\min}\bigr) \\
+f_{t,\text{eff}} &= \max\bigl(f_{t0}\,(1-\beta_{ft}\,a),\; f_{t0}\,f_{ft,\min}\bigr) \\
+f_{c,\text{eff}} &= \max\bigl(f_{c0}\,(1-\beta_{fc}\,a),\; f_{c0}\,f_{fc,\min}\bigr) \\
+G_{f,\text{eff}} &= \max\bigl(G_{f0}\,(1-\beta_{Gf}\,a),\; G_{f0}\,f_{Gf,\min}\bigr)
 \end{aligned}$$
 
-Los $\beta_*$ son **calibrables**; los pisos ($f_{*,\min}$) evitan valores no físicos.
+Los coeficientes $\beta_E, \beta_{ft}, \beta_{fc}, \beta_{Gf}$ son **calibrables**;
+los pisos $f_{E,\min}, f_{ft,\min}, \ldots$ evitan valores no físicos.
 
 ## 6. Daño y regularización / Damage and regularisation
 
@@ -84,9 +86,9 @@ Daño de tracción exponencial gobernado por una variable de historia $\kappa$
 (deformación equivalente de tracción máxima alcanzada):
 
 $$\begin{aligned}
-\varepsilon_0 &= \frac{f_{t,\text{eff}}}{E_\text{eff}} \\[8pt]
-\varepsilon_f &= \frac{G_{f,\text{eff}}}{f_{t,\text{eff}}\,h_e} \\[8pt]
-d &= 1 - \frac{\varepsilon_0}{\kappa}\exp\!\left(-\frac{\kappa - \varepsilon_0}{\varepsilon_f - \varepsilon_0}\right), \qquad \kappa > \varepsilon_0
+\varepsilon_0 &= \frac{f_{t,\text{eff}}}{E_\text{eff}} \\
+\varepsilon_f &= \frac{G_{f,\text{eff}}}{f_{t,\text{eff}}\,h_e} \\
+d &= 1 - \frac{\varepsilon_0}{\kappa}\exp\left(-\frac{\kappa - \varepsilon_0}{\varepsilon_f - \varepsilon_0}\right), \qquad \kappa > \varepsilon_0
 \end{aligned}$$
 
 La presencia de $h_e$ (longitud característica del elemento) en $\varepsilon_f$ es la
@@ -106,10 +108,10 @@ con un campo de desplazamientos de **expansión libre**:
 
 $$u_x = \varepsilon_\text{RAS}\,(x - x_\text{ref}), \qquad u_y = \varepsilon_\text{RAS}\,(y - y_\text{ref})$$
 
-de modo que $\boldsymbol{\varepsilon}_\text{mec} \approx \mathbf{0}$ y **no aparecen tensiones artificiales** al comenzar
-el ensayo mecánico. En sólidos restringidos (presa, base empotrada) la expansión
-se equilibra contra la coacción y genera tensiones reales, por lo que no se usa
-este truco.
+de modo que $\boldsymbol{\varepsilon}_\text{mec} \approx \mathbf{0}$ y **no aparecen tensiones artificiales** al
+comenzar el ensayo mecánico. En sólidos restringidos (presa, base empotrada) la
+expansión se equilibra contra la coacción y genera tensiones reales, por lo que
+no se usa este truco.
 
 ## 8. Solución no lineal / Nonlinear solution
 

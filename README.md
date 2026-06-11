@@ -19,9 +19,8 @@ $$\boldsymbol{\varepsilon}_\text{mec} = \boldsymbol{\varepsilon}_\text{total} - 
 $$\boldsymbol{\sigma} = (1-d)\,E_\text{eff}(\xi)\,\mathbf{C}(\nu)\,\boldsymbol{\varepsilon}_\text{mec}$$
 
 - $\boldsymbol{\varepsilon}_\text{RAS} = \xi\,\varepsilon_\text{RAS}^\infty\,[1,1,0]^\top$ — expansión impuesta por la RAS.
-- $d$ — daño de tracción regularizado por energía de fractura $G_f$ y tamaño de
-  elemento $h_e$ (objetividad de malla).
-- $E, f_t, f_c, G_f$ se degradan con el grado de reacción $\xi(t) \in [0,1]$.
+- $d$ — daño de tracción regularizado por energía de fractura $G_f$ y tamaño de elemento $h_e$ (objetividad de malla).
+- $E$, $f_t$, $f_c$, $G_f$ se degradan con el grado de reacción $\xi(t) \in [0,1]$.
 
 Dos casos de referencia validados numéricamente:
 - **Viga entallada tipo RILEM** (Q4, tensión plana, control por desplazamiento).
@@ -49,8 +48,15 @@ https://www.python.org/downloads/ — en Windows, marcá *"Add Python to PATH"*.
 ```bash
 pip install -e .                    # núcleo
 pip install -e ".[web]"             # + app web local
-pip install -e ".[numba]"           # + aceleración CPU (opcional)
+pip install -e ".[numba]"           # + aceleración CPU con Numba JIT (opcional)
+pip install -e ".[gpu]"             # + solver GPU con CuPy (opcional, ver nota)
 ```
+
+> **GPU:** Requiere GPU NVIDIA con CUDA 12. Primero instalá los drivers desde
+> [nvidia.com/drivers](https://www.nvidia.com/Download/index.aspx) y verificá con
+> `nvidia-smi`. Después `pip install -e ".[gpu]"` instala `cupy-cuda12x`
+> automáticamente. El backend GPU solo se activa automáticamente con mallas
+> grandes (≥ 50 000 grados de libertad); para mallas pequeñas no hay ganancia.
 
 **Paso 4 — Verificar**
 
@@ -143,8 +149,15 @@ git clone https://github.com/exequiel-santucho/rasfem.git
 cd rasfem
 pip install -e .
 pip install -e ".[web]"       # local web app
-pip install -e ".[numba]"     # optional CPU JIT
+pip install -e ".[numba]"     # optional CPU JIT (Numba)
+pip install -e ".[gpu]"       # optional GPU solver (see note)
 ```
+
+> **GPU:** Requires an NVIDIA GPU with CUDA 12. First install the drivers from
+> [nvidia.com/drivers](https://www.nvidia.com/Download/index.aspx) and verify
+> with `nvidia-smi`. Then `pip install -e ".[gpu]"` installs `cupy-cuda12x`
+> automatically. The GPU backend activates automatically only for large meshes
+> (≥ 50 000 DOF); there is no benefit for small meshes.
 
 Python 3.10+ required. On Windows, tick *"Add Python to PATH"* during install.
 
