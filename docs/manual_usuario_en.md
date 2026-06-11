@@ -28,7 +28,7 @@
 `rasfem` solves 2D plane finite element problems for concrete structures affected
 by the **Alkali-Silica Reaction (ASR)**. The model includes:
 
-- **Imposed ASR expansion**: `ε_ASR = ξ · ε_ASR_inf · [1, 1, 0]`
+- **Imposed ASR expansion**: $\boldsymbol{\varepsilon}_\text{ASR} = \xi\,\varepsilon_\text{ASR}^\infty\,[1,\,1,\,0]^\top$
 - **Fracture-energy-regularised tensile damage** (mesh-objective).
 - **Mechanical property degradation** (E, ft, fc, Gf) with reaction extent ξ.
 - **Two numerically validated reference cases**: notched RILEM beam and gravity dam.
@@ -612,9 +612,9 @@ dam, reflecting the capacity reduction due to ASR.
 
 ### 10.2 Damage map (`mapa_dano.png`)
 
-Shows the damage variable `d ∈ [0, 1]` per element at the end of the analysis:
-- `d ≈ 0`: intact material.
-- `d ≈ 1`: fully damaged (open crack).
+Shows the damage variable $d \in [0,1]$ per element at the end of the analysis:
+- $d \approx 0$: intact material.
+- $d \approx 1$: fully damaged (open crack).
 
 In the beam, damage localises at the notch tip. In the dam, at the heel
 (upstream base).
@@ -659,10 +659,10 @@ With `pip install -e ".[numba]"`, the global assembly is accelerated by two
 kernels compiled at runtime (`@njit(parallel=True, cache=True)`):
 
 - **`_ke_numba`**: computes element stiffness matrices
-  `Ke[e] = Σ_gp Bᵀ[e,gp] · Ct[e,gp] · B[e,gp] · w[e,gp]` in parallel
-  over elements (`prange`), fusing the BtC intermediate product.
+  $\mathbf{K}_e = \sum_\text{gp} \mathbf{B}^\top \mathbf{C}_t \mathbf{B}\,w_\text{gp}$
+  in parallel over elements (`prange`), fusing the $\mathbf{B}^\top\mathbf{C}_t$ intermediate product.
 - **`_fe_numba`**: computes element internal force vectors
-  `Fe[e] = Σ_gp Bᵀ[e,gp] · σ[e,gp] · w[e,gp]` similarly in parallel.
+  $\mathbf{f}_e = \sum_\text{gp} \mathbf{B}^\top \boldsymbol{\sigma}\,w_\text{gp}$ similarly in parallel.
 
 The constitutive model (`damage.py`) is already NumPy-vectorised; its
 bottleneck is the numerical tangent (3 extra evaluations per iteration),
@@ -730,7 +730,7 @@ pytest tests/ -v -m "not slow"
 | Test | What it verifies |
 |---|---|
 | `test_elastic_split` | Elastic matrix `C(E,ν)` is proportional to the unit form `E·Ĉ(ν)`. Catches factorisation errors in the elastic stiffness matrix. |
-| `test_xi_larive_bounds` | Larive's law `ξ(t)` returns values in [0,1] and is monotonically increasing in time for any input. |
+| `test_xi_larive_bounds` | Larive's law $\xi(t)$ returns values in $[0,1]$ and is monotonically increasing in time for any input. |
 | `test_degradation_floors_and_monotonic` | With ASR active: properties at ξ=0 equal the originals; at ξ=1 they are degraded but never below the minimum floor (`E_min_factor`, etc.). |
 | `test_t3_b_matrix_area` | T3 element B-matrix has shape (3×6) and the area of a reference triangle is exactly 0.5. |
 | `test_q4_unit_square_jacobian` | Q4 Jacobian at the centre of a 2×2 square equals 1.0. |
@@ -739,13 +739,13 @@ pytest tests/ -v -m "not slow"
 
 | Test | What it verifies |
 |---|---|
-| `test_constitutive_matches_legacy` | **2000 random Gauss-point states**: the vectorised `ConstitutiveModel` of `rasfem` produces exactly the same stress tensor and damage as `update_damage_material()` from the original `viga_rilem.py` script, with error < 1×10⁻⁹ (machine precision). This proves the refactor did not alter the beam physics. |
+| `test_constitutive_matches_legacy` | **2000 random Gauss-point states**: the vectorised `ConstitutiveModel` of `rasfem` produces exactly the same stress tensor and damage as `update_damage_material()` from the original `viga_rilem.py` script, with error $< 10^{-9}$ (machine precision). This proves the refactor did not alter the beam physics. |
 
 #### `test_presa_regression.py` — Dam regression tests
 
 | Test | What it verifies | Mark |
 |---|---|---|
-| `test_linear_softening_matches_legacy` | **103 values of kappa**: the linear softening law in rasfem (`d = ef·(κ−ε₀) / (κ·(ef−ε₀))`) matches `damage_from_kappa()` from `presa_ras.py`, including edge cases (below ε₀, in the softening zone, beyond ef). Error < 1×10⁻⁹. | fast |
+| `test_linear_softening_matches_legacy` | **103 values of kappa**: the linear softening law in rasfem ($d = \varepsilon_f(\kappa-\varepsilon_0)\,/\,[\kappa(\varepsilon_f-\varepsilon_0)]$) matches `damage_from_kappa()` from `presa_ras.py`, including edge cases (below $\varepsilon_0$, in the softening zone, beyond $\varepsilon_f$). Error < $10^{-9}$. | fast |
 | `test_dam_healthy_snapshot` | Full FEM analysis of the **healthy dam** loaded to H=100 m: crest displacement (ux ≈ 13.50 mm) and maximum damage (dmax ≈ 0.784) match values validated against `presa_ras.py` (ANIOS_RAS=0). Tolerance: ±0.6 mm in ux, ±0.06 in dmax. | `slow` |
 | `test_dam_healthy_damage_monotonic` | In the healthy-dam run to H=98 m, damage is **irreversible**: it never decreases at any load step. Verifies the damage memory mechanism. | `slow` |
 

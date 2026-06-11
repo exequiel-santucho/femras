@@ -28,7 +28,7 @@
 `rasfem` resuelve problemas planos de elementos finitos (MEF 2D) para estructuras
 de hormigón afectadas por la **Reacción Álcali-Sílice (RAS)**. El modelo incluye:
 
-- **Expansión impuesta** por la RAS: `ε_RAS = ξ · ε_RAS_inf · [1, 1, 0]`
+- **Expansión impuesta** por la RAS: $\boldsymbol{\varepsilon}_\text{RAS} = \xi\,\varepsilon_\text{RAS}^\infty\,[1,\,1,\,0]^\top$
 - **Daño de tracción** regularizado por energía de fractura (objetividad de malla).
 - **Degradación de propiedades** mecánicas (E, ft, fc, Gf) con el grado de reacción ξ.
 - **Dos casos de referencia validados**: viga entallada tipo RILEM y presa de gravedad.
@@ -688,9 +688,9 @@ sana, lo que refleja la reducción de capacidad por la RAS.
 
 ### 10.2 Mapa de daño (`mapa_dano.png`)
 
-Muestra la variable de daño `d ∈ [0, 1]` por elemento al final del análisis:
-- `d ≈ 0`: material intacto.
-- `d ≈ 1`: daño completo (fisura abierta).
+Muestra la variable de daño $d \in [0,1]$ por elemento al final del análisis:
+- $d \approx 0$: material intacto.
+- $d \approx 1$: daño completo (fisura abierta).
 
 En la viga, el daño debe localizarse en la punta de la entalla.
 En la presa, en la zona del talón (pie aguas arriba).
@@ -751,10 +751,10 @@ Con `pip install -e ".[numba]"`, el ensamblaje global se acelera con dos
 kernels compilados en tiempo de ejecución (`@njit(parallel=True, cache=True)`):
 
 - **`_ke_numba`**: calcula las matrices de rigidez elementales
-  `Ke[e] = Σ_gp Bᵀ[e,gp] · Ct[e,gp] · B[e,gp] · w[e,gp]` en paralelo
-  sobre los elementos (`prange`), eliminando el array intermedio BtC.
+  $\mathbf{K}_e = \sum_\text{gp} \mathbf{B}^\top \mathbf{C}_t \mathbf{B}\,w_\text{gp}$
+  en paralelo sobre los elementos (`prange`), eliminando el array intermedio $\mathbf{B}^\top\mathbf{C}_t$.
 - **`_fe_numba`**: calcula las fuerzas internas elementales
-  `Fe[e] = Σ_gp Bᵀ[e,gp] · σ[e,gp] · w[e,gp]` ídem en paralelo.
+  $\mathbf{f}_e = \sum_\text{gp} \mathbf{B}^\top \boldsymbol{\sigma}\,w_\text{gp}$ ídem en paralelo.
 
 El modelo constitutivo (`damage.py`) ya es NumPy vectorizado y no requiere
 kernels adicionales — su cuello de botella es la tangente numérica (3
@@ -825,7 +825,7 @@ pytest tests/ -v -m "not slow"
 | Test | Qué verifica |
 |---|---|
 | `test_elastic_split` | La matriz elástica `C(E,ν)` es proporcional a la forma unitaria `E·Chat(ν)`. Detecta errores en la factorización de la matriz de rigidez elástica. |
-| `test_xi_larive_bounds` | La ley de Larive `ξ(t)` devuelve valores en [0,1] y es monótona creciente en el tiempo para cualquier entrada. |
+| `test_xi_larive_bounds` | La ley de Larive $\xi(t)$ devuelve valores en $[0,1]$ y es monótona creciente en el tiempo para cualquier entrada. |
 | `test_degradation_floors_and_monotonic` | Con RAS activa: a ξ=0 las propiedades son las originales; a ξ=1 están degradadas pero nunca por debajo del piso mínimo (`E_min_factor`, etc.). |
 | `test_t3_b_matrix_area` | La matriz B del elemento T3 tiene forma (3×6) y el área calculada de un triángulo de referencia es 0.5 (exacto). |
 | `test_q4_unit_square_jacobian` | El Jacobiano del elemento Q4 sobre un cuadrado 2×2 vale 1.0 en el punto central. |
@@ -834,13 +834,13 @@ pytest tests/ -v -m "not slow"
 
 | Test | Qué verifica |
 |---|---|
-| `test_constitutive_matches_legacy` | **2000 estados de punto de Gauss aleatorios**: el `ConstitutiveModel` vectorizado de `rasfem` produce exactamente el mismo tensor de tensiones y el mismo daño que la función `update_damage_material()` del script original `viga_rilem.py`, con error < 1×10⁻⁹ (precisión de máquina). Esto garantiza que el refactor no alteró la física del modelo. |
+| `test_constitutive_matches_legacy` | **2000 estados de punto de Gauss aleatorios**: el `ConstitutiveModel` vectorizado de `rasfem` produce exactamente el mismo tensor de tensiones y el mismo daño que la función `update_damage_material()` del script original `viga_rilem.py`, con error $< 10^{-9}$ (precisión de máquina). Esto garantiza que el refactor no alteró la física del modelo. |
 
 #### Módulo `test_presa_regression.py` — Regresión de la presa
 
 | Test | Qué verifica | Marca |
 |---|---|---|
-| `test_linear_softening_matches_legacy` | **103 valores de kappa**: la ley de ablandamiento lineal implementada en rasfem (`d = ef·(κ−ε₀) / (κ·(ef−ε₀))`) coincide con la función `damage_from_kappa()` del script `presa_ras.py`, incluyendo los casos límite (por debajo de ε₀, en la zona de ablandamiento, y más allá de ef). Error < 1×10⁻⁹. | rápido |
+| `test_linear_softening_matches_legacy` | **103 valores de kappa**: la ley de ablandamiento lineal implementada en rasfem ($d = \varepsilon_f(\kappa-\varepsilon_0)\,/\,[\kappa(\varepsilon_f-\varepsilon_0)]$) coincide con la función `damage_from_kappa()` del script `presa_ras.py`, incluyendo los casos límite (por debajo de $\varepsilon_0$, en la zona de ablandamiento, y más allá de $\varepsilon_f$). Error < $10^{-9}$. | rápido |
 | `test_dam_healthy_snapshot` | Análisis MEF completo de la **presa sana** cargada hasta H=100 m: el desplazamiento horizontal del coronamiento (ux ≈ 13.50 mm) y el daño máximo (dmax ≈ 0.784) coinciden con los valores validados del script `presa_ras.py` (ANIOS_RAS=0). Tolerancia: ±0.6 mm en ux, ±0.06 en dmax. | `slow` |
 | `test_dam_healthy_damage_monotonic` | En el análisis de presa sana hasta H=98 m, el daño es **irreversible**: no disminuye en ningún paso de carga. Verifica que el mecanismo de "memoria" del daño funciona correctamente. | `slow` |
 

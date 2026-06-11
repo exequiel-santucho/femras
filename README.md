@@ -14,15 +14,14 @@
 
 `rasfem` resuelve en 2D (estado plano) el modelo acoplado:
 
-```
-eps_mec = eps_total - eps_RAS          (descomposición de deformaciones)
-sigma   = (1 - d) · E_eff(ξ) · C(ν) · eps_mec   (constitutivo con daño)
-```
+$$\boldsymbol{\varepsilon}_\text{mec} = \boldsymbol{\varepsilon}_\text{total} - \boldsymbol{\varepsilon}_\text{RAS}$$
 
-- `eps_RAS = ξ · eps_RAS_inf · [1,1,0]` — expansión impuesta por la RAS.
-- `d` — daño de tracción regularizado por energía de fractura `Gf` y tamaño de
-  elemento `h_e` (objetividad de malla).
-- `E, ft, fc, Gf` se degradan con el grado de reacción `ξ(t) ∈ [0,1]`.
+$$\boldsymbol{\sigma} = (1-d)\,E_\text{eff}(\xi)\,\mathbf{C}(\nu)\,\boldsymbol{\varepsilon}_\text{mec}$$
+
+- $\boldsymbol{\varepsilon}_\text{RAS} = \xi\,\varepsilon_\text{RAS}^\infty\,[1,1,0]^\top$ — expansión impuesta por la RAS.
+- $d$ — daño de tracción regularizado por energía de fractura $G_f$ y tamaño de
+  elemento $h_e$ (objetividad de malla).
+- $E, f_t, f_c, G_f$ se degradan con el grado de reacción $\xi(t) \in [0,1]$.
 
 Dos casos de referencia validados numéricamente:
 - **Viga entallada tipo RILEM** (Q4, tensión plana, control por desplazamiento).
@@ -125,13 +124,12 @@ para la descripción detallada de cada test.
 
 `rasfem` solves the coupled ASR damage model in 2D (plane problems):
 
-```
-eps_mec = eps_total - eps_RAS
-sigma   = (1 - d) · E_eff(ξ) · C(ν) · eps_mec
-```
+$$\boldsymbol{\varepsilon}_\text{mec} = \boldsymbol{\varepsilon}_\text{total} - \boldsymbol{\varepsilon}_\text{ASR}$$
+
+$$\boldsymbol{\sigma} = (1-d)\,E_\text{eff}(\xi)\,\mathbf{C}(\nu)\,\boldsymbol{\varepsilon}_\text{mec}$$
 
 - ASR expansion, scalar tensile damage (fracture-energy regularised), and
-  property degradation with the reaction extent `ξ`.
+  property degradation with the reaction extent $\xi$.
 
 Two numerically validated reference cases:
 - **Notched RILEM beam** (Q4, plane stress, displacement control).
