@@ -32,12 +32,16 @@ observadas y sea fácil de usar y de extender.
 
 La deformación total se descompone en parte mecánica y parte de RAS:
 
-$$\boldsymbol{\varepsilon}_\text{total} = \boldsymbol{\varepsilon}_\text{mec} + \boldsymbol{\varepsilon}_\text{RAS}, \qquad \boldsymbol{\varepsilon}_\text{mec} = \boldsymbol{\varepsilon}_\text{total} - \boldsymbol{\varepsilon}_\text{RAS}$$
+$$
+\boldsymbol{\varepsilon}_\text{total} = \boldsymbol{\varepsilon}_\text{mec} + \boldsymbol{\varepsilon}_\text{RAS}, \qquad \boldsymbol{\varepsilon}_\text{mec} = \boldsymbol{\varepsilon}_\text{total} - \boldsymbol{\varepsilon}_\text{RAS}
+$$
 
 La tensión se calcula **solo** con la deformación mecánica y un escalar de daño
 $d \in [0,1]$:
 
-$$\boldsymbol{\sigma} = (1-d)\,\mathbf{C}(E_\text{eff},\nu)\,\boldsymbol{\varepsilon}_\text{mec}$$
+$$
+\boldsymbol{\sigma} = (1-d)\,\mathbf{C}(E_\text{eff},\nu)\,\boldsymbol{\varepsilon}_\text{mec}
+$$
 
 donde $\mathbf{C}$ es la matriz elástica lineal (tensión o deformación plana) y
 $E_\text{eff}$ el módulo degradado por la RAS (sección 5).
@@ -47,7 +51,9 @@ $E_\text{eff}$ el módulo degradado por la RAS (sección 5).
 La RAS introduce una deformación impuesta isótropa en el plano, análoga a una
 deformación térmica:
 
-$$\boldsymbol{\varepsilon}_\text{RAS} = \xi\,\varepsilon_\text{RAS}^\infty\begin{bmatrix}1\\1\\0\end{bmatrix}$$
+$$
+\boldsymbol{\varepsilon}_\text{RAS} = \xi\,\varepsilon_\text{RAS}^\infty\,[1,\,1,\,0]^\top
+$$
 
 - $\xi(t) \in [0,1]$ es el **grado de avance** de la reacción.
 - $\varepsilon_\text{RAS}^\infty$ es la deformación lineal última, calculada como
@@ -58,7 +64,9 @@ $$\boldsymbol{\varepsilon}_\text{RAS} = \xi\,\varepsilon_\text{RAS}^\infty\begin
 
 **Larive (sigmoide):**
 
-$$\xi(t) = \frac{1 - \exp(-t/\tau_\text{ch})}{1 + \exp\left(-\dfrac{t - \tau_\text{lat}}{\tau_\text{ch}}\right)}$$
+$$
+\xi(t) = \frac{1 - \exp(-t/\tau_\text{ch})}{1 + \exp\!\left(-\dfrac{t - \tau_\text{lat}}{\tau_\text{ch}}\right)}
+$$
 
 con $\tau_\text{lat}$ (tiempo de latencia) y $\tau_\text{ch}$ (tiempo característico).
 
@@ -99,14 +107,18 @@ es **irreversible** ($d$ no decrece).
 La deformación equivalente de tracción se obtiene de las deformaciones
 principales $e_1, e_2$:
 
-$$\tilde{\varepsilon}_t = \sqrt{\langle e_1\rangle^2 + \langle e_2\rangle^2}, \qquad \langle x\rangle = \max(x,0)$$
+$$
+\tilde{\varepsilon}_t = \sqrt{\langle e_1\rangle^2 + \langle e_2\rangle^2}, \qquad \langle x\rangle = \max(x,0)
+$$
 
 ## 7. Expansión libre inicial / Initial free expansion (vigas)
 
 Para una RAS uniforme en una pieza no restringida (viga), se inicia el análisis
 con un campo de desplazamientos de **expansión libre**:
 
-$$u_x = \varepsilon_\text{RAS}\,(x - x_\text{ref}), \qquad u_y = \varepsilon_\text{RAS}\,(y - y_\text{ref})$$
+$$
+u_x = \varepsilon_\text{RAS}\,(x - x_\text{ref}), \qquad u_y = \varepsilon_\text{RAS}\,(y - y_\text{ref})
+$$
 
 de modo que $\boldsymbol{\varepsilon}_\text{mec} \approx \mathbf{0}$ y **no aparecen tensiones artificiales** al
 comenzar el ensayo mecánico. En sólidos restringidos (presa, base empotrada) la
@@ -128,8 +140,3 @@ no se usa este truco.
     empuje hidrostático); bajo control de carga la solución **no puede pasar el
     pico**, por lo que el último nivel convergido es el nivel de fallo.
 
-## 9. Referencias del repositorio / Repository references
-
-- Scripts originales validados: `examples/legacy/viga_rilem.py`,
-  `examples/legacy/presa_ras.py`.
-- Documento base del modelo: `referencias/Desarrollo de un Modelo MEF ... (RAS).pdf`.
