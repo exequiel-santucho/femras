@@ -1,31 +1,156 @@
-// rasfem local web app (MVP).
-// Loads an example config, lets the user edit it as JSON, previews the mesh and
-// runs the analysis, plotting the control-response curve. This is the foundation
-// the graphical canvas pre-processor builds on (it will write the same config).
+// rasfem web app — text mode + canvas integration.
 
 const I18N = {
-  es: { config:"Ficha de datos", ex_beam:"Ejemplo viga", ex_dam:"Ejemplo presa",
-        preview:"Previsualizar malla", run:"Calcular", mesh:"Malla / Geometría",
-        results:"Resultados", summary:"Resumen", running:"Calculando…",
-        meshing:"Generando malla…", done:"Listo", err:"Error" },
-  en: { config:"Data sheet", ex_beam:"Beam example", ex_dam:"Dam example",
-        preview:"Preview mesh", run:"Run", mesh:"Mesh / Geometry",
-        results:"Results", summary:"Summary", running:"Running…",
-        meshing:"Meshing…", done:"Done", err:"Error" },
+  es: {
+    // Text mode
+    config:    "Ficha de datos",
+    ex_beam:   "Ejemplo viga",
+    ex_dam:    "Ejemplo presa",
+    preview:   "Previsualizar malla",
+    run:       "Calcular",
+    mesh:      "Malla / Geometría",
+    results:   "Resultados",
+    summary:   "Resumen",
+    running:   "Calculando…",
+    meshing:   "Generando malla…",
+    done:      "Listo",
+    err:       "Error",
+    // Header
+    mode_text:   "Texto",
+    mode_canvas: "Canvas",
+    // Canvas tools
+    canvas: {
+      tool_vertex:   "Vértice",
+      tool_fixed:    "Fijo",
+      tool_rollerx:  "Rod.X",
+      tool_rollery:  "Rod.Y",
+      tool_load:     "Carga",
+      tool_edge:     "Cara H.",
+      tool_delete:   "Borrar",
+      // Templates / export
+      sec_templates: "Plantillas",
+      tpl_dam:       "Presa",
+      tpl_beam:      "Viga",
+      sec_geometry:  "Geometría",
+      lbl_meshsize:  "Tamaño malla (mm)",
+      lbl_thickness: "Espesor (mm)",
+      lbl_probtype:  "Tipo de problema",
+      opt_strain:    "Def. plana",
+      opt_stress:    "Tens. plana",
+      sec_schedule:  "Historial de carga",
+      sch_add:       "+ Agregar paso",
+      sec_beam:      "Geometría viga",
+      lbl_L:   "L (mm)",
+      lbl_H:   "H (mm)",
+      lbl_nx:  "nx",
+      lbl_ny:  "ny",
+      lbl_nw:  "Entalla ancho (mm)",
+      lbl_nh:  "Entalla alto (mm)",
+      lbl_sp:  "Vano apoyos (mm)",
+      lbl_th:  "Espesor (mm)",
+      sec_inspector: "Propiedades",
+      ins_none: "Sin selección.",
+      ins_vertex: "Vértice",
+      ins_edge:   "Arista",
+      ins_x: "X",
+      ins_y: "Y",
+      ins_len: "Long.",
+      ins_type: "Tipo",
+      ins_face: "(cara hidráulica)",
+      btn_preview: "Ver malla",
+      btn_export:  "Exportar a Texto",
+      // Status
+      st_template: "Plantilla cargada. Editá los vértices y generá la malla.",
+      st_closed:   "Polígono cerrado. Agregá apoyos y cargas.",
+      st_open:     "Doble clic para cerrar el polígono.",
+      st_no_verts: "Hacé clic en el canvas para agregar vértices.",
+      instr: "Clic: vértice · Doble clic: cerrar · Arrastrar: mover · Del: borrar",
+    },
+  },
+  en: {
+    config:    "Data sheet",
+    ex_beam:   "Beam example",
+    ex_dam:    "Dam example",
+    preview:   "Preview mesh",
+    run:       "Run",
+    mesh:      "Mesh / Geometry",
+    results:   "Results",
+    summary:   "Summary",
+    running:   "Running…",
+    meshing:   "Meshing…",
+    done:      "Done",
+    err:       "Error",
+    mode_text:   "Text",
+    mode_canvas: "Canvas",
+    canvas: {
+      tool_vertex:   "Vertex",
+      tool_fixed:    "Fixed",
+      tool_rollerx:  "Roll.X",
+      tool_rollery:  "Roll.Y",
+      tool_load:     "Load",
+      tool_edge:     "H.Face",
+      tool_delete:   "Delete",
+      sec_templates: "Templates",
+      tpl_dam:       "Dam",
+      tpl_beam:      "Beam",
+      sec_geometry:  "Geometry",
+      lbl_meshsize:  "Mesh size (mm)",
+      lbl_thickness: "Thickness (mm)",
+      lbl_probtype:  "Problem type",
+      opt_strain:    "Plane strain",
+      opt_stress:    "Plane stress",
+      sec_schedule:  "Load schedule",
+      sch_add:       "+ Add step",
+      sec_beam:      "Beam geometry",
+      lbl_L:   "L (mm)",
+      lbl_H:   "H (mm)",
+      lbl_nx:  "nx",
+      lbl_ny:  "ny",
+      lbl_nw:  "Notch width (mm)",
+      lbl_nh:  "Notch height (mm)",
+      lbl_sp:  "Support span (mm)",
+      lbl_th:  "Thickness (mm)",
+      sec_inspector: "Properties",
+      ins_none:   "Nothing selected.",
+      ins_vertex: "Vertex",
+      ins_edge:   "Edge",
+      ins_x:   "X",
+      ins_y:   "Y",
+      ins_len: "Len.",
+      ins_type: "Type",
+      ins_face: "(hydraulic face)",
+      btn_preview: "Preview mesh",
+      btn_export:  "Export to Text",
+      st_template: "Template loaded. Edit vertices and generate the mesh.",
+      st_closed:   "Polygon closed. Add supports and loads.",
+      st_open:     "Double-click to close the polygon.",
+      st_no_verts: "Click on canvas to add vertices.",
+      instr: "Click: vertex · Dbl-click: close · Drag: move · Del: delete",
+    },
+  },
 };
+
 let lang = "es";
+
+function _ct(key) {
+  return (I18N[lang].canvas && I18N[lang].canvas[key]) || key;
+}
 
 function applyI18n() {
   document.querySelectorAll("[data-i18n]").forEach(el => {
     const k = el.getAttribute("data-i18n");
-    if (I18N[lang][k]) el.textContent = I18N[lang][k];
+    const parts = k.split(".");
+    let val = I18N[lang];
+    for (const p of parts) val = val && val[p];
+    if (val && typeof val === "string") el.textContent = val;
   });
   document.getElementById("lang").textContent = lang === "es" ? "EN" : "ES";
   document.documentElement.lang = lang;
+  document.dispatchEvent(new CustomEvent("langchange", { detail: { lang } }));
 }
 
 const $ = id => document.getElementById(id);
-const status = m => { $("status").textContent = m; };
+const status = m => { if ($("status")) $("status").textContent = m; };
 
 async function loadExample(name) {
   const r = await fetch(`/api/example/${name}`);
@@ -43,13 +168,16 @@ async function preview() {
   const cfg = readCfg(); if (!cfg) return;
   status(I18N[lang].meshing);
   const r = await fetch("/api/mesh_preview", {
-    method:"POST", headers:{"Content-Type":"application/json"},
+    method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ cfg })
   });
   if (!r.ok) { status(I18N[lang].err + ": " + (await r.text())); return; }
   const { nodes, elements } = await r.json();
   drawMesh(nodes, elements);
-  status(`${I18N[lang].done}: ${nodes.length} ${lang==="es"?"nodos":"nodes"}, ${elements.length} ${lang==="es"?"elementos":"elements"}`);
+  const nn = nodes.length, ne = elements.length;
+  const ns = lang === "es" ? "nodos" : "nodes";
+  const es = lang === "es" ? "elementos" : "elements";
+  status(`${I18N[lang].done}: ${nn} ${ns}, ${ne} ${es}`);
 }
 
 function drawMesh(nodes, elements) {
@@ -58,12 +186,12 @@ function drawMesh(nodes, elements) {
   const minY = Math.min(...ys), maxY = Math.max(...ys);
   const w = maxX - minX || 1, h = maxY - minY || 1;
   const pad = 0.05 * Math.max(w, h);
-  const svg = $("mesh");
-  svg.setAttribute("viewBox", `${minX-pad} ${minY-pad} ${w+2*pad} ${h+2*pad}`);
-  // flip Y so it reads as engineering coordinates (y up)
+  const svg = $("mesh-svg");
+  svg.setAttribute("viewBox", `${minX - pad} ${minY - pad} ${w + 2*pad} ${h + 2*pad}`);
+  const sw = 0.004 * Math.max(w, h);
   const polys = elements.map(el => {
-    const pts = el.map(i => `${nodes[i][0]},${maxY+minY-nodes[i][1]}`).join(" ");
-    return `<polygon points="${pts}" fill="#173a2a" stroke="#4aa3ff" stroke-width="${0.004*Math.max(w,h)}"/>`;
+    const pts = el.map(i => `${nodes[i][0]},${maxY + minY - nodes[i][1]}`).join(" ");
+    return `<polygon points="${pts}" fill="#0f2820" stroke="#3b82f6" stroke-width="${sw}"/>`;
   }).join("");
   svg.innerHTML = polys;
 }
@@ -74,7 +202,7 @@ async function run() {
   $("run").disabled = true;
   try {
     const r = await fetch("/api/run", {
-      method:"POST", headers:{"Content-Type":"application/json"},
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg)
     });
     if (!r.ok) { status(I18N[lang].err + ": " + (await r.text())); return; }
@@ -89,33 +217,59 @@ function plotCurve(curve, cfg) {
   const isDam = cfg.loading && cfg.loading.mode === "hydraulic";
   const x = curve.control.map(Math.abs);
   Plotly.newPlot("curve", [
-    { x, y: curve.load, mode:"lines+markers", name: isDam ? "ux crest" : "P",
-      line:{color:"#4aa3ff"} },
-    { x, y: curve.dmax, mode:"lines", name:"dmax", yaxis:"y2",
-      line:{color:"#ff9a4a", dash:"dot"} },
+    { x, y: curve.load, mode: "lines+markers", name: isDam ? "ux crest" : "P",
+      line: { color: "#60a5fa" } },
+    { x, y: curve.dmax, mode: "lines", name: "dmax", yaxis: "y2",
+      line: { color: "#f87171", dash: "dot" } },
   ], {
-    margin:{t:10,r:50,b:40,l:55}, paper_bgcolor:"#16212e", plot_bgcolor:"#0c141d",
-    font:{color:"#e7eef6"},
-    xaxis:{ title: isDam ? "H" : "|δ|", gridcolor:"#25364a" },
-    yaxis:{ title: isDam ? "ux crest" : "P", gridcolor:"#25364a" },
-    yaxis2:{ title:"dmax", overlaying:"y", side:"right", range:[0,1] },
-    legend:{orientation:"h"},
-  }, {displaylogo:false, responsive:true});
+    margin: { t: 10, r: 50, b: 40, l: 55 },
+    paper_bgcolor: "#132135", plot_bgcolor: "#0d1929",
+    font: { color: "#dce8f5", size: 11 },
+    xaxis: { title: isDam ? "H" : "|δ|", gridcolor: "#233b5c" },
+    yaxis: { title: isDam ? "ux crest" : "P", gridcolor: "#233b5c" },
+    yaxis2: { title: "dmax", overlaying: "y", side: "right", range: [0, 1] },
+    legend: { orientation: "h", y: -0.2 },
+  }, { displaylogo: false, responsive: true });
 }
 
 function showSummary(s) {
-  const fmt = v => (typeof v === "number" ? v.toExponential(4) : v);
-  const rows = Object.entries(s).map(([k,v]) => `<div>${k}</div><div>${fmt(v)}</div>`);
+  const fmt = v => (typeof v === "number" ? v.toExponential(4) : String(v));
+  const rows = Object.entries(s).map(([k, v]) =>
+    `<div>${k}</div><div>${fmt(v)}</div>`);
   $("summary").innerHTML = rows.join("");
 }
 
+// ── Event delegation ──────────────────────────────────────────────────────────
 document.addEventListener("click", e => {
   const t = e.target;
-  if (t.id === "lang") { lang = lang === "es" ? "en" : "es"; applyI18n(); }
+  if (t.id === "lang") {
+    lang = lang === "es" ? "en" : "es";
+    applyI18n();
+  }
   if (t.id === "preview") preview();
   if (t.id === "run") run();
   if (t.dataset && t.dataset.load) loadExample(t.dataset.load);
 });
 
-applyI18n();
-loadExample("beam");
+// ── View switching ─────────────────────────────────────────────────────────────
+function switchView(view) {
+  const tl = $("text-layout");
+  const cl = $("canvas-layout");
+  if (view === "text") {
+    tl.classList.remove("hidden");
+    cl.classList.remove("active");
+  } else {
+    tl.classList.add("hidden");
+    cl.classList.add("active");
+  }
+  document.querySelectorAll(".mode-tab").forEach(b =>
+    b.classList.toggle("active", b.dataset.view === view));
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".mode-tab").forEach(btn =>
+    btn.addEventListener("click", () => switchView(btn.dataset.view)));
+  applyI18n();
+  loadExample("beam");
+  initEditor();
+});

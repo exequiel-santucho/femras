@@ -16,7 +16,9 @@
 
 $$\boldsymbol{\varepsilon}_\text{mec} = \boldsymbol{\varepsilon}_\text{total} - \boldsymbol{\varepsilon}_\text{RAS}$$
 
-$$\boldsymbol{\sigma} = (1-d)\,E_\text{eff}(\xi)\,\mathbf{C}(\nu)\,\boldsymbol{\varepsilon}_\text{mec}$$
+$$
+\boldsymbol{\sigma} = (1-d)\,\mathbf{C}(E_\text{eff},\nu)\,\boldsymbol{\varepsilon}_\text{mec}
+$$
 
 - $\boldsymbol{\varepsilon}_\text{RAS} = \xi\,\varepsilon_\text{RAS}^\infty\,[1,1,0]^\top$ — expansión impuesta por la RAS.
 - $d$ — daño de tracción regularizado por energía de fractura $G_f$ y tamaño de elemento $h_e$ (objetividad de malla).
@@ -132,7 +134,9 @@ para la descripción detallada de cada test.
 
 $$\boldsymbol{\varepsilon}_\text{mec} = \boldsymbol{\varepsilon}_\text{total} - \boldsymbol{\varepsilon}_\text{ASR}$$
 
-$$\boldsymbol{\sigma} = (1-d)\,E_\text{eff}(\xi)\,\mathbf{C}(\nu)\,\boldsymbol{\varepsilon}_\text{mec}$$
+$$
+\boldsymbol{\sigma} = (1-d)\,\mathbf{C}(E_\text{eff},\nu)\,\boldsymbol{\varepsilon}_\text{mec}
+$$
 
 - ASR expansion, scalar tensile damage (fracture-energy regularised), and
   property degradation with the reaction extent $\xi$.

@@ -6,6 +6,8 @@ displacement on a top patch, recover the equivalent load from the reaction).
 e.g. the hydraulic load, by a control level).
 
 Both wrap :func:`rasfem.solver.solve_step_newton` and carry the GPState arrays.
+Multi-segment history (cyclic/complex loading) is handled in run.py by calling
+these drivers once per segment and chaining the state.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from .solver import SolverOptions, solve_step_newton
 @dataclass
 class SteppingOptions:
     target: float = -0.20
+    delta_start: float = 0.0      # start of this segment (for multi-segment history)
     step_initial: float = -0.0010
     step_min: float = -0.000010
     step_max: float = -0.0015
@@ -63,10 +66,15 @@ def run_displacement_control(assembler: Assembler, model: ConstitutiveModel,
     U_final = U0.copy()
     control, load, dmax_hist, table = [], [], [], []
     accepted = rejected = 0
-    delta = 0.0
+    delta = stepping.delta_start
     step = stepping.step_initial
 
-    while abs(delta) < abs(stepping.target) and accepted < stepping.max_accepted_steps:
+    # Direction: +1 if loading toward positive target, -1 if toward negative
+    seg_range = abs(stepping.target - stepping.delta_start)
+    direction = 1.0 if stepping.target >= stepping.delta_start else -1.0
+    eps = abs(stepping.step_min) * 1e-3 + 1e-15
+
+    while direction * (stepping.target - delta) > eps and accepted < stepping.max_accepted_steps:
         delta_try, step_try = _toward(delta, step, stepping.target)
         prescribed = dict(support_dofs)
         for d in load_dofs:
@@ -136,29 +144,30 @@ def run_load_control(assembler: Assembler, model: ConstitutiveModel,
                      state0: GPState, U0: np.ndarray, support_dofs: dict,
                      build_fext, output_fn, stepping: LevelStepping,
                      solver_opts: SolverOptions, progress=None) -> AnalysisResult:
-    """Increment an external load parameter (e.g. water level) until failure.
+    """Increment an external load parameter (e.g. water level) until failure or target.
 
     ``build_fext(level)`` returns the external force vector at a given control
     level; ``output_fn(U, Fint)`` returns the scalar recorded as ``load`` (e.g.
-    crest displacement). Under load control the solver cannot pass the peak, so
-    the last converged level is the failure/overtopping level.
+    crest displacement).  Direction is inferred from ``h_start`` vs ``h_target``,
+    so descending water levels (reversal) are supported.
     """
     state = state0.copy()
     U_current = U0.copy()
     U_final = U0.copy()
     control, load, dmax_hist, table = [], [], [], []
     accepted = rejected = 0
-    level = stepping.h_start
-    dh = stepping.dh_initial
-    reached = False
 
-    while not reached and accepted < stepping.max_accepted_steps:
-        level_try = level + dh
-        if level_try >= stepping.h_target:
+    direction = 1.0 if stepping.h_target >= stepping.h_start else -1.0
+    dh_abs = abs(stepping.dh_initial)
+    dh_min_abs = abs(stepping.dh_min)
+    dh_max_abs = abs(stepping.dh_max)
+    level = stepping.h_start
+    eps = dh_min_abs * 1e-3 + 1e-15
+
+    while direction * (stepping.h_target - level) > eps and accepted < stepping.max_accepted_steps:
+        level_try = level + direction * dh_abs
+        if direction * (level_try - stepping.h_target) >= 0:
             level_try = stepping.h_target
-            reached_try = True
-        else:
-            reached_try = False
 
         fext = build_fext(level_try)
         res = solve_step_newton(assembler, model, state, U_current,
@@ -169,8 +178,8 @@ def run_load_control(assembler: Assembler, model: ConstitutiveModel,
             table.append(dict(step=accepted + 1, attempt=rejected, control=level_try,
                               load=0.0, dmax=None, iters=res.iters,
                               norm_R=res.norm_R, conv=False))
-            dh *= stepping.shrink_factor
-            if dh < stepping.dh_min:
+            dh_abs = max(dh_abs * stepping.shrink_factor, dh_min_abs)
+            if dh_abs <= dh_min_abs * (1.0 + 1e-9):
                 break
             continue
 
@@ -179,7 +188,6 @@ def run_load_control(assembler: Assembler, model: ConstitutiveModel,
         U_final = res.U.copy()
         level = level_try
         accepted += 1
-        reached = reached_try
 
         out = float(output_fn(res.U, res.Fint))
         dmax = float(_element_max_damage(state))
@@ -192,9 +200,9 @@ def run_load_control(assembler: Assembler, model: ConstitutiveModel,
             progress(accepted, level, out, dmax)
 
         if res.iters <= stepping.iter_grow_below:
-            dh = min(dh * stepping.grow_factor, stepping.dh_max)
+            dh_abs = min(dh_abs * stepping.grow_factor, dh_max_abs)
         elif res.iters >= stepping.iter_shrink_above:
-            dh = max(dh * stepping.shrink_factor, stepping.dh_min)
+            dh_abs = max(dh_abs * stepping.shrink_factor, dh_min_abs)
 
     return AnalysisResult(np.array(control), np.array(load), np.array(dmax_hist),
                           U_final, state, accepted, rejected, table)

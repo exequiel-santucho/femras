@@ -1,8 +1,8 @@
 """Orchestrator: turn a validated :class:`~rasfem.config.Config` into a run.
 
-Currently wires the displacement-controlled beam end to end. The hydraulic
-(load-controlled dam) path is added together with the polygon mesh and ASR
-service stage.
+Both the displacement-controlled beam and the hydraulic (load-controlled dam)
+paths are implemented.  Multi-segment load history and an arbitrary hydraulic
+face (not just x = 0) are supported.
 """
 
 from __future__ import annotations
@@ -11,7 +11,8 @@ from pathlib import Path
 
 import numpy as np
 
-from .analysis import SteppingOptions, run_displacement_control
+from .analysis import LevelStepping, SteppingOptions, AnalysisResult
+from .analysis import run_displacement_control, run_load_control
 from .assembly import Assembler
 from .config import Config
 from .damage import GPState
@@ -27,6 +28,8 @@ def run_config(cfg: Config, out_dir: str | Path | None = None, progress=None) ->
         return _run_dam(cfg, out_dir, progress)
     raise NotImplementedError(f"loading mode '{cfg.loading.mode}' not supported")
 
+
+# ─── Beam (displacement control) ─────────────────────────────────────────────
 
 def _run_beam(cfg: Config, out_dir, progress) -> dict:
     from . import postprocess as pp
@@ -63,15 +66,47 @@ def _run_beam(cfg: Config, out_dir, progress) -> dict:
     support_dofs = {2 * sl: 0.0, 2 * sl + 1: 0.0, 2 * sr + 1: 0.0}
     load_dofs = [2 * n + 1 for n in load_nodes]
 
-    stepping = SteppingOptions(
-        target=ld.target, step_initial=ld.step_initial, step_min=ld.step_min,
-        step_max=ld.step_max, grow_factor=ld.grow_factor,
-        shrink_factor=ld.shrink_factor, max_accepted_steps=ld.max_accepted_steps)
-    state0 = GPState.zeros(elements.shape[0], elem.n_gp)
+    # Multi-segment history: if history is empty, use [target] (backward compat).
+    targets = list(ld.history) if ld.history else [ld.target]
 
-    result = run_displacement_control(
-        assembler, model, state0, U0, support_dofs, load_dofs, load_base,
-        stepping, cfg.solver_options(), progress=progress)
+    all_control, all_load, all_dmax, all_table = [], [], [], []
+    total_accepted = total_rejected = 0
+    state = GPState.zeros(elements.shape[0], elem.n_gp)
+    U = U0.copy()
+    delta_curr = 0.0
+
+    for seg_target in targets:
+        direction = 1.0 if seg_target >= delta_curr else -1.0
+        step_mag = abs(ld.step_initial)
+
+        stepping = SteppingOptions(
+            target=seg_target,
+            delta_start=delta_curr,
+            step_initial=direction * step_mag,
+            step_min=direction * abs(ld.step_min),
+            step_max=direction * abs(ld.step_max),
+            grow_factor=ld.grow_factor,
+            shrink_factor=ld.shrink_factor,
+            max_accepted_steps=ld.max_accepted_steps,
+        )
+
+        seg = run_displacement_control(
+            assembler, model, state, U, support_dofs, load_dofs, load_base,
+            stepping, cfg.solver_options(), progress=progress)
+
+        all_control.extend(seg.control.tolist())
+        all_load.extend(seg.load.tolist())
+        all_dmax.extend(seg.max_damage.tolist())
+        all_table.extend(seg.step_table)
+        total_accepted += seg.accepted
+        total_rejected += seg.rejected
+        state = seg.state
+        U = seg.U_final.copy()
+        delta_curr = seg_target
+
+    result = AnalysisResult(
+        np.array(all_control), np.array(all_load), np.array(all_dmax),
+        U, state, total_accepted, total_rejected, all_table)
 
     out = Path(out_dir or cfg.output.dir) / cfg.name
     summary = pp.save_summary(out, cfg, result,
@@ -86,6 +121,27 @@ def _run_beam(cfg: Config, out_dir, progress) -> dict:
                         control_label="|delta| [mm]", load_label="P [N]")
     return {"result": result, "summary": summary, "out_dir": str(out),
             "nodes": nodes, "elements": elements}
+
+
+# ─── Dam (hydraulic / load control) ──────────────────────────────────────────
+
+def _face_inward_normal(p1, p2, poly_vertices):
+    """Inward normal for the polygon face defined by [p1, p2].
+
+    Returns the normal that points toward the polygon interior (centroid side).
+    """
+    p1 = np.asarray(p1, float)
+    p2 = np.asarray(p2, float)
+    t = p2 - p1
+    t_len = float(np.linalg.norm(t))
+    if t_len < 1e-15:
+        return np.array([1.0, 0.0])
+    t = t / t_len
+    n_left = np.array([-t[1], t[0]])
+    n_right = np.array([t[1], -t[0]])
+    centroid = np.mean(np.asarray(poly_vertices, float), axis=0)
+    mid = 0.5 * (p1 + p2)
+    return n_left if float(np.dot(n_left, centroid - mid)) > 0 else n_right
 
 
 def _xi_uniform(t_days, total_days, xi_target, rate):
@@ -104,7 +160,7 @@ def _water_level_annual(t_days, h_max, h_min):
 
 
 def _run_service_stage(assembler, material, ras, elem, nodes, up_edges, support_dofs,
-                       ld, pt, cfg, service_cfg, progress_service=None):
+                       ld, pt, cfg, service_cfg, face_normal=None, progress_service=None):
     """Simulate RAS service stage (uniform xi, annual water level, no thermal field).
 
     Returns (U_final, state_final, xi_final) ready for the overtopping analysis.
@@ -112,6 +168,9 @@ def _run_service_stage(assembler, material, ras, elem, nodes, up_edges, support_
     """
     from .loads import assemble_external_force
     from .solver import solve_step_newton
+
+    if face_normal is None:
+        face_normal = np.array([1.0, 0.0])
 
     n_elem = elem.B.shape[0]
     n_dof = assembler.n_dof
@@ -137,7 +196,6 @@ def _run_service_stage(assembler, material, ras, elem, nodes, up_edges, support_
         xi_val = _xi_uniform(t_days, total_days, service_cfg.xi_target,
                              service_cfg.xi_rate)
 
-        # Rebuild constitutive model with updated xi
         model = make_constitutive(material, ras, xi_val, elem.h_e, pt,
                                   strain_shear_factor=cfg.problem.strain_shear_factor,
                                   min_stiff_factor=cfg.solver.min_stiff_factor)
@@ -146,7 +204,8 @@ def _run_service_stage(assembler, material, ras, elem, nodes, up_edges, support_
                                      service_cfg.h_service_min)
         fext = assemble_external_force(nodes, elem, up_edges, Hwater,
                                        gamma_c=ld.gamma_c, gamma_w=ld.gamma_w,
-                                       thickness=cfg.problem.thickness)
+                                       thickness=cfg.problem.thickness,
+                                       face_normal=face_normal)
 
         res = solve_step_newton(assembler, model, state, U, dict(support_dofs),
                                 solver_opts_service, fext=fext)
@@ -165,7 +224,8 @@ def _run_service_stage(assembler, material, ras, elem, nodes, up_edges, support_
                                   min_stiff_factor=cfg.solver.min_stiff_factor)
     fext_start = assemble_external_force(nodes, elem, up_edges, ld.h_start,
                                          gamma_c=ld.gamma_c, gamma_w=ld.gamma_w,
-                                         thickness=cfg.problem.thickness)
+                                         thickness=cfg.problem.thickness,
+                                         face_normal=face_normal)
     res_end = solve_step_newton(assembler, model_end, state, U, dict(support_dofs),
                                 opts, fext=fext_start)
     if res_end.converged:
@@ -177,9 +237,9 @@ def _run_service_stage(assembler, material, ras, elem, nodes, up_edges, support_
 
 def _run_dam(cfg: Config, out_dir, progress) -> dict:
     from . import postprocess as pp
-    from .analysis import LevelStepping, run_load_control
     from .loads import assemble_external_force
-    from .mesh.polygon import conforming_t3_mesh, nearest_node, vertical_face_edges, base_nodes
+    from .mesh.polygon import (conforming_t3_mesh, nearest_node,
+                               vertical_face_edges, face_boundary_edges, base_nodes)
     from .solver import solve_step_newton
 
     geo = cfg.geometry
@@ -195,21 +255,30 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
     elem = precompute(nodes, elements, "t3", cfg.problem.thickness)
     assembler = Assembler(elem)
 
-    up_edges = vertical_face_edges(nodes, elements, x_face=0.0)
+    # Hydraulic face: use face_vertices if specified, else fall back to x = 0
+    if ld.face_vertices is not None:
+        fv = ld.face_vertices
+        p1, p2 = np.asarray(fv[0], float), np.asarray(fv[1], float)
+        up_edges = face_boundary_edges(nodes, elements, p1, p2)
+        face_normal = _face_inward_normal(p1, p2, geo.vertices)
+    else:
+        up_edges = vertical_face_edges(nodes, elements, x_face=0.0)
+        face_normal = np.array([1.0, 0.0])
+
     base = base_nodes(nodes, y_base=0.0)
     support_dofs = {}
     for n in base:
         support_dofs[2 * n] = 0.0
         support_dofs[2 * n + 1] = 0.0
 
-    # crest node = topmost upstream vertex
     crest = nearest_node(nodes, [0.0, geo.height])
     crest_dof_x = 2 * crest
 
     def build_fext(level):
         return assemble_external_force(nodes, elem, up_edges, level,
                                        gamma_c=ld.gamma_c, gamma_w=ld.gamma_w,
-                                       thickness=cfg.problem.thickness)
+                                       thickness=cfg.problem.thickness,
+                                       face_normal=face_normal)
 
     def output_fn(U, Fint):
         return U[crest_dof_x]
@@ -218,12 +287,10 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
     service_cfg = cfg.service
 
     if service_cfg is not None and service_cfg.service_years > 0:
-        # Run service stage (16 years of RAS + cycling water level)
         U0, state0, xi_final = _run_service_stage(
             assembler, material, ras, elem, nodes, up_edges, support_dofs,
-            ld, pt, cfg, service_cfg)
+            ld, pt, cfg, service_cfg, face_normal=face_normal)
     else:
-        # No service stage: single equilibrium at h_start with constant xi
         xi_final = ras.xi_at()
         state0 = GPState.zeros(elements.shape[0], elem.n_gp)
         U0 = np.zeros(n_dof)
@@ -236,18 +303,46 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
         state0 = res0.state
         U0 = res0.U
 
-    # Build overtopping model with the final xi
     model = make_constitutive(material, ras, xi_final, elem.h_e, pt,
                               strain_shear_factor=cfg.problem.strain_shear_factor,
                               min_stiff_factor=cfg.solver.min_stiff_factor)
 
-    stepping = LevelStepping(h_start=ld.h_start, h_target=ld.h_target,
-                             dh_initial=ld.dh_initial, dh_min=ld.dh_min,
-                             dh_max=ld.dh_max, max_accepted_steps=ld.max_accepted_steps)
+    # Multi-segment history
+    targets = list(ld.history) if ld.history else [ld.h_target]
 
-    result = run_load_control(assembler, model, state0, U0, support_dofs,
-                              build_fext, output_fn, stepping,
-                              cfg.solver_options(), progress=progress)
+    all_control, all_load, all_dmax, all_table = [], [], [], []
+    total_accepted = total_rejected = 0
+    state = state0
+    U = U0.copy()
+    level_curr = ld.h_start
+
+    for seg_target in targets:
+        stepping = LevelStepping(
+            h_start=level_curr,
+            h_target=seg_target,
+            dh_initial=ld.dh_initial,
+            dh_min=ld.dh_min,
+            dh_max=ld.dh_max,
+            max_accepted_steps=ld.max_accepted_steps,
+        )
+
+        seg = run_load_control(assembler, model, state, U, support_dofs,
+                               build_fext, output_fn, stepping,
+                               cfg.solver_options(), progress=progress)
+
+        all_control.extend(seg.control.tolist())
+        all_load.extend(seg.load.tolist())
+        all_dmax.extend(seg.max_damage.tolist())
+        all_table.extend(seg.step_table)
+        total_accepted += seg.accepted
+        total_rejected += seg.rejected
+        state = seg.state
+        U = seg.U_final.copy()
+        level_curr = float(seg.control[-1]) if seg.control.size else level_curr
+
+    result = AnalysisResult(
+        np.array(all_control), np.array(all_load), np.array(all_dmax),
+        U, state, total_accepted, total_rejected, all_table)
 
     out = Path(out_dir or cfg.output.dir) / cfg.name
     summary = pp.save_summary(out, cfg, result,

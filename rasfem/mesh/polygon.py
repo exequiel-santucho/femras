@@ -108,5 +108,35 @@ def vertical_face_edges(nodes, elements, x_face=0.0, tol=1e-7):
     return sorted(edges, key=lambda ij: min(nodes[ij[0], 1], nodes[ij[1], 1]))
 
 
+def face_boundary_edges(nodes, elements, p1, p2, tol=None):
+    """Free boundary edges whose both nodes lie on the segment [p1, p2].
+
+    Generalises ``vertical_face_edges`` to an arbitrary polygon edge.
+    ``tol`` defaults to 1e-4 * |p2-p1| (relative), floored at 1e-7.
+    Returns edges sorted by the y-coordinate of their lower node.
+    """
+    p1 = np.asarray(p1, float)
+    p2 = np.asarray(p2, float)
+    seg_len = float(np.linalg.norm(p2 - p1))
+    if seg_len < 1e-15:
+        return []
+    if tol is None:
+        tol = max(1e-4 * seg_len, 1e-7)
+    u = (p2 - p1) / seg_len  # unit vector along segment
+
+    def on_seg(n_idx):
+        v = nodes[n_idx] - p1
+        t = float(np.dot(v, u))
+        if t < -tol or t > seg_len + tol:
+            return False
+        return float(np.linalg.norm(v - t * u)) < tol
+
+    edges = []
+    for (i, j), owners in boundary_edges(elements).items():
+        if len(owners) == 1 and on_seg(i) and on_seg(j):
+            edges.append((i, j))
+    return sorted(edges, key=lambda ij: min(nodes[ij[0], 1], nodes[ij[1], 1]))
+
+
 def base_nodes(nodes, y_base=0.0, tol=1e-7):
     return np.where(np.abs(nodes[:, 1] - y_base) < tol)[0]

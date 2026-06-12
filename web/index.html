@@ -4,294 +4,296 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>rasfem — FEM RAS/ASR</title>
+  <link rel="stylesheet" href="/style.css" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-  <style>
-    :root {
-      --bg:#0f1720; --panel:#16212e; --ink:#e7eef6; --mut:#8aa0b4;
-      --acc:#4aa3ff; --warn:#f0c040; --danger:#ff7755;
-    }
-    * { box-sizing: border-box; }
-    body { margin:0; font:14px/1.45 system-ui, Segoe UI, Roboto, sans-serif;
-           background:var(--bg); color:var(--ink); overflow-x:hidden; }
-    header { display:flex; align-items:center; gap:10px; padding:10px 16px;
-             background:var(--panel); border-bottom:1px solid #25364a; }
-    header h1 { font-size:17px; margin:0; }
-    header .sp { flex:1; }
-    button { background:var(--acc); color:#04121f; border:0; border-radius:7px;
-             padding:7px 11px; font-weight:600; cursor:pointer; font-size:13px; }
-    button.ghost { background:#22324a; color:var(--ink); }
-    button.ghost:hover { background:#2d445e; }
-    button.active { background:var(--acc); color:#04121f; }
-    button:disabled { opacity:.45; cursor:default; }
-
-    /* ── Text mode layout ── */
-    #text-layout { display:grid; grid-template-columns:420px 1fr; gap:12px; padding:12px; }
-    .panel { background:var(--panel); border:1px solid #25364a; border-radius:10px; padding:12px; }
-    .panel h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em;
-                color:var(--mut); margin:0 0 8px; }
-    textarea { width:100%; height:340px; background:#0c141d; color:#bfe3c8;
-               border:1px solid #25364a; border-radius:8px; padding:10px;
-               font-family:ui-monospace,Consolas,monospace; font-size:12px; resize:vertical; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
-    #mesh { width:100%; height:280px; background:#0c141d; border-radius:8px; }
-    #curve { width:100%; height:310px; }
-    .status { color:var(--mut); min-height:18px; font-size:13px; }
-    .kv { display:grid; grid-template-columns:1fr auto; gap:2px 12px; font-size:13px; }
-    .kv div:nth-child(even){ color:var(--acc); text-align:right; }
-
-    /* ── Canvas mode layout ── */
-    #canvas-layout { display:none; grid-template-columns:300px 1fr; gap:12px; padding:12px; height:calc(100vh - 52px); }
-    #canvas-layout.active { display:grid; }
-    #text-layout.hidden { display:none; }
-
-    /* Canvas sidebar */
-    #ed-sidebar { display:flex; flex-direction:column; gap:10px; overflow-y:auto; }
-    #ed-sidebar .panel { flex-shrink:0; }
-    .tool-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
-    .tool-grid button { padding:6px 4px; font-size:12px; }
-    .field-row { display:flex; align-items:center; gap:6px; margin:4px 0; font-size:13px; }
-    .field-row label { color:var(--mut); flex:1; }
-    .field-row input { width:90px; background:#0c141d; color:var(--ink);
-                       border:1px solid #25364a; border-radius:5px; padding:4px 6px; }
-    .field-row input[type="checkbox"] { width:auto; }
-
-    /* SVG canvas */
-    #ed-canvas-wrap { background:var(--panel); border:1px solid #25364a; border-radius:10px;
-                      padding:10px; display:flex; flex-direction:column; min-height:0; }
-    #ed-canvas-wrap h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em;
-                         color:var(--mut); margin:0 0 8px; }
-    #ed-svg { flex:1; width:100%; background:#0c141d; border-radius:8px;
-              display:block; min-height:400px; }
-    #ed-coords { font-size:12px; color:var(--mut); margin-top:4px; height:16px; }
-    #ed-status  { font-size:13px; color:var(--mut); margin-top:4px; min-height:18px; }
-
-    /* Beam schematic */
-    #bm-svg { width:100%; height:160px; background:#0c141d; border-radius:8px; display:block; }
-
-    a { color:var(--acc); }
-    select { background:#0c141d; color:var(--ink); border:1px solid #25364a;
-             border-radius:5px; padding:4px 6px; font-size:13px; }
-    hr { border:0; border-top:1px solid #25364a; margin:8px 0; }
-  </style>
 </head>
 <body>
+<div id="app">
+
+  <!-- ═══════════════════ HEADER ═══════════════════ -->
   <header>
-    <h1>rasfem</h1>
-    <span class="sp"></span>
-    <button class="ghost active" id="mode-text"   data-view="text"  >Texto</button>
-    <button class="ghost"        id="mode-canvas" data-view="canvas">Canvas</button>
+    <span class="logo">rasfem</span>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-view="text" data-i18n="mode_text">Texto</button>
+      <button class="mode-tab"        data-view="canvas" data-i18n="mode_canvas">Canvas</button>
+    </div>
+    <div class="spacer"></div>
     <button class="ghost" id="lang">EN</button>
   </header>
 
-  <!-- ═══════════════════  TEXT MODE  ═══════════════════ -->
-  <div id="text-layout">
-    <section class="panel">
-      <h2 data-i18n="config">Ficha de datos</h2>
-      <div class="row">
-        <button class="ghost" data-load="beam" data-i18n="ex_beam">Ejemplo viga</button>
-        <button class="ghost" data-load="dam"  data-i18n="ex_dam" >Ejemplo presa</button>
-      </div>
-      <textarea id="cfg" spellcheck="false"></textarea>
-      <div class="row">
-        <button id="preview" data-i18n="preview">Previsualizar malla</button>
-        <button id="run"     data-i18n="run"    >Calcular</button>
-      </div>
-      <div class="status" id="status"></div>
-    </section>
+  <div id="main">
 
-    <section style="display:grid; grid-template-rows:auto auto 1fr; gap:12px;">
-      <div class="panel">
-        <h2 data-i18n="mesh">Malla / Geometría</h2>
-        <svg id="mesh" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
-      </div>
-      <div class="panel">
-        <h2 data-i18n="results">Resultados</h2>
-        <div id="curve"></div>
-      </div>
-      <div class="panel">
-        <h2 data-i18n="summary">Resumen</h2>
-        <div class="kv" id="summary"></div>
-      </div>
-    </section>
-  </div>
-
-  <!-- ═══════════════════  CANVAS MODE  ═══════════════════ -->
-  <div id="canvas-layout">
-
-    <!-- Sidebar: tools + controls -->
-    <aside id="ed-sidebar">
-
-      <!-- Templates -->
-      <div class="panel">
-        <h2>Plantillas</h2>
-        <div class="row">
-          <button class="ghost" onclick="editorLoadTemplate('dam')">Presa</button>
-          <button class="ghost" onclick="editorLoadTemplate('beam')">Viga</button>
+    <!-- ═══════════════════ TEXT MODE ═══════════════════ -->
+    <div id="text-layout">
+      <div id="text-left">
+        <div class="panel">
+          <div class="panel-title" data-i18n="config">Ficha de datos</div>
+          <div class="row">
+            <button class="ghost sm" data-load="beam" data-i18n="ex_beam">Ejemplo viga</button>
+            <button class="ghost sm" data-load="dam"  data-i18n="ex_dam">Ejemplo presa</button>
+          </div>
+          <textarea id="cfg" spellcheck="false"></textarea>
+          <div class="row" style="margin-top:8px">
+            <button id="preview" data-i18n="preview">Previsualizar malla</button>
+            <button id="run"     data-i18n="run">Calcular</button>
+          </div>
+          <div class="status-text" id="status"></div>
         </div>
       </div>
 
-      <!-- Polygon tools panel -->
-      <div class="panel" id="ed-poly-panel">
-        <h2>Herramientas</h2>
-        <div class="tool-grid">
-          <button class="ghost ed-tool active" data-tool="vertex"  title="Agregar vértice">✦ Vértice</button>
-          <button class="ghost ed-tool"        data-tool="delete"  title="Borrar vértice">✕ Borrar</button>
-          <button class="ghost ed-tool"        data-tool="support" data-stype="fixed"    title="Apoyo fijo">△ Fijo</button>
-          <button class="ghost ed-tool"        data-tool="support" data-stype="roller_x" title="Rodillo X">⊿ Rod.X</button>
-          <button class="ghost ed-tool"        data-tool="support" data-stype="roller_y" title="Rodillo Y">◁ Rod.Y</button>
-          <button class="ghost ed-tool"        data-tool="load"    title="Carga puntual">↓ Carga</button>
+      <div id="text-right">
+        <div class="panel">
+          <div class="panel-title" data-i18n="mesh">Malla / Geometría</div>
+          <svg id="mesh-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
         </div>
-        <hr>
-        <div class="field-row">
-          <label>Tamaño malla (mm)</label>
-          <input id="ed-meshsize" type="number" value="2000" min="100" step="100">
+        <div class="panel">
+          <div class="panel-title" data-i18n="results">Resultados</div>
+          <div class="plot-wrap"><div id="curve"></div></div>
         </div>
-        <div class="field-row">
-          <label>Espesor (mm)</label>
-          <input id="ed-thickness" type="number" value="1000" min="1">
+        <div class="panel">
+          <div class="panel-title" data-i18n="summary">Resumen</div>
+          <div class="kv" id="summary"></div>
         </div>
-        <div class="field-row">
-          <label>Tipo problema</label>
-          <select id="ed-probtype" onchange="poly.problemType=this.value">
-            <option value="plane_strain">Def. plana</option>
-            <option value="plane_stress">Tens. plana</option>
-          </select>
+      </div>
+    </div><!-- end text-layout -->
+
+    <!-- ═══════════════════ CANVAS MODE ═══════════════════ -->
+    <div id="canvas-layout">
+
+      <!-- Tool palette -->
+      <aside id="tool-palette">
+        <button class="icon-btn ed-tool active" data-tool="vertex"
+                title="Vértice (V)" data-i18n-title="canvas.tool_vertex">
+          <span class="icon">✦</span>
+          <span data-i18n="canvas.tool_vertex">Vértice</span>
+          <span class="kbd">V</span>
+        </button>
+
+        <div class="tool-sep"></div>
+
+        <button class="icon-btn ed-tool" data-tool="support" data-stype="fixed"
+                title="Apoyo fijo (F)" data-i18n-title="canvas.tool_fixed">
+          <span class="icon">△</span>
+          <span data-i18n="canvas.tool_fixed">Fijo</span>
+          <span class="kbd">F</span>
+        </button>
+        <button class="icon-btn ed-tool" data-tool="support" data-stype="roller_x"
+                title="Rodillo X (X)">
+          <span class="icon">⊿</span>
+          <span data-i18n="canvas.tool_rollerx">Rod.X</span>
+          <span class="kbd">X</span>
+        </button>
+        <button class="icon-btn ed-tool" data-tool="support" data-stype="roller_y"
+                title="Rodillo Y (Y)">
+          <span class="icon">◁</span>
+          <span data-i18n="canvas.tool_rollery">Rod.Y</span>
+          <span class="kbd">Y</span>
+        </button>
+
+        <div class="tool-sep"></div>
+
+        <button class="icon-btn ed-tool" data-tool="load"
+                title="Carga puntual (L)">
+          <span class="icon">↓</span>
+          <span data-i18n="canvas.tool_load">Carga</span>
+          <span class="kbd">L</span>
+        </button>
+        <button class="icon-btn ed-tool" data-tool="edge"
+                title="Cara hidráulica (E)">
+          <span class="icon">〜</span>
+          <span data-i18n="canvas.tool_edge">Cara H.</span>
+          <span class="kbd">E</span>
+        </button>
+
+        <div class="tool-sep"></div>
+
+        <button class="icon-btn ed-tool" data-tool="delete"
+                title="Borrar (D)">
+          <span class="icon">✕</span>
+          <span data-i18n="canvas.tool_delete">Borrar</span>
+          <span class="kbd">D</span>
+        </button>
+      </aside>
+
+      <!-- Canvas center -->
+      <div id="canvas-center">
+        <div id="ed-canvas-wrap">
+          <svg id="ed-svg" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <marker id="ed-arrow" markerWidth="8" markerHeight="8"
+                refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#f87171"/>
+              </marker>
+            </defs>
+            <g id="ed-world" transform="scale(1,-1)"></g>
+          </svg>
         </div>
-        <div class="field-row">
-          <label>Carga hidráulica</label>
-          <input id="ed-hydraulic" type="checkbox" checked>
+        <!-- Status bar -->
+        <div id="canvas-statusbar">
+          <span id="ed-coords">—</span>
+          <span class="sb-sep"></span>
+          <span id="ed-status" data-i18n="canvas.st_no_verts">Hacé clic en el canvas para agregar vértices.</span>
         </div>
-        <hr>
-        <p style="font-size:12px;color:var(--mut);margin:4px 0">
-          Clic: agregar vértice<br>
-          Doble clic: cerrar polígono<br>
-          Arrastrar: mover vértice<br>
-          Delete: borrar seleccionado
-        </p>
       </div>
 
-      <!-- Beam form panel -->
-      <div class="panel" id="ed-beam-panel" style="display:none">
-        <h2>Geometría de viga</h2>
-        <div class="field-row"><label>L (mm)</label><input id="bm-L" type="number" value="430"></div>
-        <div class="field-row"><label>H (mm)</label><input id="bm-H" type="number" value="105"></div>
-        <div class="field-row"><label>nx</label><input id="bm-nx" type="number" value="86"></div>
-        <div class="field-row"><label>ny</label><input id="bm-ny" type="number" value="21"></div>
-        <div class="field-row"><label>Entalla ancho (mm)</label><input id="bm-notchW" type="number" value="3"></div>
-        <div class="field-row"><label>Entalla alto (mm)</label><input id="bm-notchH" type="number" value="52.5"></div>
-        <div class="field-row"><label>Vano apoyos (mm)</label><input id="bm-span" type="number" value="400"></div>
-        <div class="field-row"><label>Espesor (mm)</label><input id="bm-thickness" type="number" value="75"></div>
-        <hr>
-        <svg id="bm-svg"></svg>
-      </div>
+      <!-- Right panel -->
+      <aside id="right-panel">
 
-      <!-- Export -->
-      <div class="panel">
-        <h2>Exportar</h2>
-        <div class="row">
-          <button id="ed-prev-btn">Previsualizar malla</button>
-          <button id="ed-export-btn" class="ghost">Exportar a Texto</button>
+        <!-- Property Inspector -->
+        <div class="acc-section expanded" id="sec-inspector">
+          <div class="acc-header" onclick="toggleAcc('sec-inspector')">
+            <span data-i18n="canvas.sec_inspector">Propiedades</span>
+            <span class="chevron">▾</span>
+          </div>
+          <div class="acc-body" id="body-inspector">
+            <div id="inspector-content">
+              <p class="inspector-empty" data-i18n="canvas.ins_none">Sin selección.</p>
+            </div>
+          </div>
         </div>
-        <div class="status" id="ed-status"></div>
-      </div>
-    </aside>
 
-    <!-- Main SVG canvas -->
-    <div id="ed-canvas-wrap">
-      <h2>
-        Canvas — modelo geométrico
-        <span style="font-weight:400;font-size:11px;color:var(--mut);margin-left:8px"
-              id="ed-coords"></span>
-      </h2>
-      <svg id="ed-svg" preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <marker id="ed-arrow" markerWidth="8" markerHeight="8"
-            refX="4" refY="4" orient="auto">
-            <path d="M0,0 L8,4 L0,8 Z" fill="#ff7755"/>
-          </marker>
-        </defs>
-        <g id="ed-world" transform="scale(1,-1)"></g>
-      </svg>
-    </div>
-  </div>
+        <!-- Load Schedule -->
+        <div class="acc-section expanded" id="sec-schedule">
+          <div class="acc-header" onclick="toggleAcc('sec-schedule')">
+            <span data-i18n="canvas.sec_schedule">Historial de carga</span>
+            <span class="chevron">▾</span>
+          </div>
+          <div class="acc-body" id="body-schedule">
+            <div id="schedule-list"></div>
+            <button class="ghost sm" style="margin-top:6px;width:100%"
+                    onclick="addScheduleStep()" data-i18n="canvas.sch_add">+ Agregar paso</button>
+            <div id="schedule-preview">
+              <svg id="schedule-svg" width="100%" height="60"></svg>
+            </div>
+          </div>
+        </div>
 
-  <script src="/app.js"></script>
-  <script src="/editor.js"></script>
-  <script>
-    // ── View switching ────────────────────────────────────────────────────
-    document.querySelectorAll("[data-view]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const view = btn.dataset.view;
-        document.getElementById("text-layout").classList.toggle("hidden", view !== "text");
-        document.getElementById("canvas-layout").classList.toggle("active", view === "canvas");
-        document.querySelectorAll("[data-view]").forEach(b =>
-          b.classList.toggle("active", b.dataset.view === view));
-      });
-    });
+        <!-- Geometry / mesh settings (polygon mode) -->
+        <div class="acc-section expanded" id="sec-geometry">
+          <div class="acc-header" onclick="toggleAcc('sec-geometry')">
+            <span data-i18n="canvas.sec_geometry">Geometría</span>
+            <span class="chevron">▾</span>
+          </div>
+          <div class="acc-body" id="body-geometry">
+            <!-- Polygon form -->
+            <div id="poly-form">
+              <div class="field-row">
+                <label data-i18n="canvas.lbl_meshsize">Tamaño malla (mm)</label>
+                <input id="ed-meshsize" type="number" value="2000" min="100" step="100">
+              </div>
+              <div class="field-row">
+                <label data-i18n="canvas.lbl_thickness">Espesor (mm)</label>
+                <input id="ed-thickness" type="number" value="1000" min="1">
+              </div>
+              <div class="field-row">
+                <label data-i18n="canvas.lbl_probtype">Tipo problema</label>
+                <select id="ed-probtype">
+                  <option value="plane_strain" data-i18n="canvas.opt_strain">Def. plana</option>
+                  <option value="plane_stress" data-i18n="canvas.opt_stress">Tens. plana</option>
+                </select>
+              </div>
+            </div>
+            <!-- Beam form -->
+            <div id="beam-form" style="display:none">
+              <div class="field-row"><label data-i18n="canvas.lbl_L">L (mm)</label><input id="bm-L" type="number" value="430"></div>
+              <div class="field-row"><label data-i18n="canvas.lbl_H">H (mm)</label><input id="bm-H" type="number" value="105"></div>
+              <div class="field-row"><label data-i18n="canvas.lbl_nx">nx</label><input id="bm-nx" type="number" value="86"></div>
+              <div class="field-row"><label data-i18n="canvas.lbl_ny">ny</label><input id="bm-ny" type="number" value="21"></div>
+              <div class="field-row"><label data-i18n="canvas.lbl_nw">Entalla ancho (mm)</label><input id="bm-notchW" type="number" value="3"></div>
+              <div class="field-row"><label data-i18n="canvas.lbl_nh">Entalla alto (mm)</label><input id="bm-notchH" type="number" value="52.5"></div>
+              <div class="field-row"><label data-i18n="canvas.lbl_sp">Vano apoyos (mm)</label><input id="bm-span" type="number" value="400"></div>
+              <div class="field-row"><label data-i18n="canvas.lbl_th">Espesor (mm)</label><input id="bm-thickness" type="number" value="75"></div>
+              <svg id="bm-svg"></svg>
+            </div>
+          </div>
+        </div>
 
-    // ── Canvas mode: preview mesh ─────────────────────────────────────────
-    document.getElementById("ed-prev-btn").addEventListener("click", async () => {
-      const cfgStr = editorExportConfig();
-      if (!cfgStr) return;
-      let cfg;
-      try { cfg = JSON.parse(cfgStr); } catch { return; }
-      document.getElementById("ed-status").textContent = "Generando malla…";
-      const r = await fetch("/api/mesh_preview", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({cfg}),
-      });
-      if (!r.ok) {
-        document.getElementById("ed-status").textContent = "Error: " + await r.text();
-        return;
-      }
-      const {nodes, elements} = await r.json();
-      // Draw mesh over the current canvas SVG
-      _drawMeshOnCanvas(nodes, elements);
-      document.getElementById("ed-status").textContent =
-        `Malla: ${nodes.length} nodos, ${elements.length} elementos.`;
-    });
+        <!-- Templates + Export (bottom scrollable) -->
+        <div id="panel-bottom">
+          <div>
+            <div class="panel-title" data-i18n="canvas.sec_templates">Plantillas</div>
+            <div class="row">
+              <button class="ghost sm" onclick="editorLoadTemplate('dam')" data-i18n="canvas.tpl_dam">Presa</button>
+              <button class="ghost sm" onclick="editorLoadTemplate('beam')" data-i18n="canvas.tpl_beam">Viga</button>
+            </div>
+          </div>
+          <div>
+            <div class="row">
+              <button id="ed-prev-btn" data-i18n="canvas.btn_preview">Ver malla</button>
+              <button id="ed-export-btn" class="ghost" data-i18n="canvas.btn_export">Exportar a Texto</button>
+            </div>
+          </div>
+        </div>
 
-    // ── Canvas mode: export to text textarea ─────────────────────────────
-    document.getElementById("ed-export-btn").addEventListener("click", () => {
-      const cfgStr = editorExportConfig();
-      if (!cfgStr) return;
-      document.getElementById("cfg").value = cfgStr;
-      // Switch to text mode
-      document.getElementById("text-layout").classList.remove("hidden");
-      document.getElementById("canvas-layout").classList.remove("active");
-      document.querySelectorAll("[data-view]").forEach(b =>
-        b.classList.toggle("active", b.dataset.view === "text"));
-      document.getElementById("status").textContent =
-        "Ficha exportada desde el canvas. Revisá y hacé clic en Calcular.";
-    });
+      </aside><!-- end right-panel -->
+    </div><!-- end canvas-layout -->
 
-    // ── Overlay mesh on canvas SVG ────────────────────────────────────────
-    function _drawMeshOnCanvas(nodes, elements) {
-      const svgEl  = document.getElementById("ed-svg");
-      const worldG = document.getElementById("ed-world");
-      // Remove previous mesh overlay if any
-      const old = document.getElementById("ed-mesh-overlay");
-      if (old) old.remove();
-      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      g.id = "ed-mesh-overlay";
-      g.setAttribute("opacity", "0.55");
-      const xs = nodes.map(n=>n[0]), ys = nodes.map(n=>n[1]);
-      const W = Math.max(...xs) - Math.min(...xs) || 1;
-      const sw = W * 0.003;
-      elements.forEach(el => {
-        const pts = el.map(i => `${nodes[i][0]},${nodes[i][1]}`).join(" ");
-        const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-        poly.setAttribute("points", pts);
-        poly.setAttribute("fill", "none");
-        poly.setAttribute("stroke", "#2af08a");
-        poly.setAttribute("stroke-width", sw);
-        g.appendChild(poly);
-      });
-      worldG.appendChild(g);
-    }
+  </div><!-- end #main -->
+</div><!-- end #app -->
 
-    // ── Init editor on load ───────────────────────────────────────────────
-    document.addEventListener("DOMContentLoaded", () => initEditor());
-  </script>
+<script src="/app.js"></script>
+<script src="/editor.js"></script>
+<script>
+// ── Canvas preview (draw mesh overlay) ───────────────────────────────────────
+document.getElementById("ed-prev-btn").addEventListener("click", async () => {
+  const cfgStr = editorExportConfig();
+  if (!cfgStr) return;
+  let cfg;
+  try { cfg = JSON.parse(cfgStr); } catch { return; }
+  document.getElementById("ed-status").textContent = I18N[lang].meshing;
+  const r = await fetch("/api/mesh_preview", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cfg }),
+  });
+  if (!r.ok) {
+    document.getElementById("ed-status").textContent = I18N[lang].err + ": " + await r.text();
+    return;
+  }
+  const { nodes, elements } = await r.json();
+  _drawMeshOnCanvas(nodes, elements);
+  document.getElementById("ed-status").textContent =
+    `${I18N[lang].done}: ${nodes.length} ${lang === "es" ? "nodos" : "nodes"}, ${elements.length} ${lang === "es" ? "elementos" : "elements"}.`;
+});
+
+// ── Export canvas → text mode ─────────────────────────────────────────────────
+document.getElementById("ed-export-btn").addEventListener("click", () => {
+  const cfgStr = editorExportConfig();
+  if (!cfgStr) return;
+  document.getElementById("cfg").value = cfgStr;
+  switchView("text");
+  document.getElementById("status").textContent =
+    lang === "es"
+      ? "Ficha exportada desde el canvas. Revisá y hacé clic en Calcular."
+      : "Config exported from canvas. Review and click Run.";
+});
+
+// ── Mesh overlay on canvas SVG ────────────────────────────────────────────────
+function _drawMeshOnCanvas(nodes, elements) {
+  const worldG = document.getElementById("ed-world");
+  const old = document.getElementById("ed-mesh-overlay");
+  if (old) old.remove();
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.id = "ed-mesh-overlay";
+  g.setAttribute("opacity", "0.5");
+  const xs = nodes.map(n => n[0]);
+  const W = Math.max(...xs) - Math.min(...xs) || 1;
+  const sw = W * 0.0025;
+  elements.forEach(el => {
+    const pts = el.map(i => `${nodes[i][0]},${nodes[i][1]}`).join(" ");
+    const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    poly.setAttribute("points", pts);
+    poly.setAttribute("fill", "none");
+    poly.setAttribute("stroke", "#34d399");
+    poly.setAttribute("stroke-width", sw);
+    g.appendChild(poly);
+  });
+  worldG.appendChild(g);
+}
+
+// ── Accordion toggle ──────────────────────────────────────────────────────────
+function toggleAcc(id) {
+  document.getElementById(id).classList.toggle("expanded");
+}
+</script>
 </body>
 </html>

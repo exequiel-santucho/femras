@@ -101,6 +101,9 @@ class DisplacementLoad(BaseModel):
     grow_factor: float = 1.10
     shrink_factor: float = 0.5
     max_accepted_steps: int = 600
+    # Ordered sequence of displacement targets (cyclic/multi-segment loading).
+    # If empty, falls back to [target]. Direction is inferred per segment.
+    history: List[float] = Field(default_factory=list)
 
 
 class HydraulicLoad(BaseModel):
@@ -113,6 +116,12 @@ class HydraulicLoad(BaseModel):
     dh_min: float = 0.020
     dh_max: float = 0.50
     max_accepted_steps: int = 600
+    # Two vertices [[x1,y1],[x2,y2]] defining the hydraulic face on the polygon.
+    # None → backward-compatible: vertical face at x=0.
+    face_vertices: Optional[List[List[float]]] = None
+    # Ordered sequence of water-level targets for multi-segment loading.
+    # If empty, falls back to [h_target].
+    history: List[float] = Field(default_factory=list)
 
 
 class SolverCfg(BaseModel):
