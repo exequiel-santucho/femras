@@ -18,10 +18,10 @@ sys.path.insert(0, os.path.abspath(LEGACY))
 
 legacy = pytest.importorskip("viga_rilem")
 
-from rasfem.damage import GPState
-from rasfem.materials import MaterialDamage
-from rasfem.ras import RASModel
-from rasfem.stages import make_constitutive
+from femras.damage import GPState
+from femras.materials import MaterialDamage
+from femras.ras import RASModel
+from femras.stages import make_constitutive
 
 
 def test_constitutive_matches_legacy():

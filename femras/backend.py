@@ -72,7 +72,7 @@ def _linsolve_gpu(K, b):
 # ── Numba JIT kernels for assembly hot loops (optional) ─────────────────────
 #
 # Activated only when ``solver.backend = numba`` is set in the config AND the
-# ``numba`` optional dependency is installed (``pip install rasfem[numba]``).
+# ``numba`` optional dependency is installed (``pip install femras[numba]``).
 # Fall back to NumPy einsum silently if not available.
 #
 # Both kernels parallelise over the element axis (prange) and fuse the

@@ -7,8 +7,8 @@ matches the legacy script examples/legacy/viga_rilem.py (see docs).
 
 import numpy as np
 
-from rasfem.config import load_config
-from rasfem.run import run_config
+from femras.config import load_config
+from femras.run import run_config
 
 EXAMPLE = "examples/viga_rilem.yaml"
 

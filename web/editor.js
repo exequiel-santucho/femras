@@ -1,5 +1,5 @@
 /**
- * editor.js — rasfem interactive canvas preprocessor
+ * editor.js — femras interactive canvas preprocessor
  *
  * Two editing modes:
  *   poly – click-to-draw polygon → PolygonGeometry config (T3, plane strain)

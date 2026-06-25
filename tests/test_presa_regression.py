@@ -20,10 +20,10 @@ import pytest
 # 1. Constitutive unit test: linear softening law
 # ---------------------------------------------------------------------------
 
-from rasfem.damage import ConstitutiveModel, GPState
-from rasfem.materials import MaterialDamage
-from rasfem.ras import RASModel
-from rasfem.stages import make_constitutive
+from femras.damage import ConstitutiveModel, GPState
+from femras.materials import MaterialDamage
+from femras.ras import RASModel
+from femras.stages import make_constitutive
 
 
 def _legacy_damage_from_kappa(kappa, E_loc, ft_loc, Gf_loc, he, damage_max=0.9995):
@@ -39,7 +39,7 @@ def _legacy_damage_from_kappa(kappa, E_loc, ft_loc, Gf_loc, he, damage_max=0.999
 
 
 def test_linear_softening_matches_legacy():
-    """rasfem linear softening == legacy damage_from_kappa to machine precision."""
+    """femras linear softening == legacy damage_from_kappa to machine precision."""
     # Dam material at xi=0 (healthy)
     E, ft, Gf, he = 22000.0, 2.10, 0.300, 1414.0   # typical 2 m T3 mesh
     damage_max = 0.9995
@@ -76,9 +76,9 @@ def test_linear_softening_matches_legacy():
         # Feed eps large enough so kappa doesn't grow (already at max)
         # Use neutral strain = RAS strain so eps_mec ~ 0
         sig, dmg, new_state = model.evaluate(eps, old_state)
-        d_rasfem = float(new_state.damage_t[0, 0])
+        d_femras = float(new_state.damage_t[0, 0])
 
-        err = abs(d_rasfem - d_legacy)
+        err = abs(d_femras - d_legacy)
         max_err = max(max_err, err)
 
     assert max_err < 1e-9, f"max softening error = {max_err:.3e}"
@@ -88,8 +88,8 @@ def test_linear_softening_matches_legacy():
 # 2. Structural snapshot: healthy dam, load to H=100 m
 # ---------------------------------------------------------------------------
 
-from rasfem.config import load_config
-from rasfem.run import run_config
+from femras.config import load_config
+from femras.run import run_config
 
 PRESA_YAML = "examples/presa_ras.yaml"
 

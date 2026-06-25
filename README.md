@@ -1,4 +1,4 @@
-# rasfem — FEM para hormigón con Reacción Álcali-Sílice (RAS / ASR)
+# femras — FEM para hormigón con Reacción Álcali-Sílice (RAS / ASR)
 
 > Herramienta MEF 2D, libre y gratuita, para estructuras de hormigón afectadas
 > por la **Reacción Álcali-Sílice**. Daño escalar de tracción + expansión RAS +
@@ -12,7 +12,7 @@
 
 ### ¿Qué hace?
 
-`rasfem` resuelve en 2D (estado plano) el modelo acoplado:
+`femras` resuelve en 2D (estado plano) el modelo acoplado:
 
 $$\boldsymbol{\varepsilon}_\text{mec} = \boldsymbol{\varepsilon}_\text{total} - \boldsymbol{\varepsilon}_\text{RAS}$$
 
@@ -63,24 +63,24 @@ pip install -e ".[gpu]"             # + solver GPU con CuPy (opcional, ver nota)
 **Paso 4 — Verificar**
 
 ```bash
-rasfem --help
+femras --help
 ```
 
 ### Primeros pasos
 
 ```bash
 # Copiar los ejemplos a una carpeta de trabajo:
-rasfem examples mis_ejemplos
+femras examples mis_ejemplos
 
 # Correr la viga entallada (rápido, ~10 s):
-rasfem run mis_ejemplos/viga_rilem.yaml
+femras run mis_ejemplos/viga_rilem.yaml
 
 # Correr la presa de gravedad (más lento, ~10–15 min con 16 años de RAS):
-rasfem run mis_ejemplos/presa_ras.yaml
+femras run mis_ejemplos/presa_ras.yaml
 ```
 
 Los resultados (curvas, mapas de daño, tablas, JSON de resumen) se guardan en
-`resultados_rasfem/<nombre>/`.
+`resultados_femras/<nombre>/`.
 
 ### App web local
 
@@ -101,7 +101,7 @@ La app tiene dos modos:
 
 ### Resultados validados
 
-| Caso | Magnitud | Valor (rasfem) | Valor (script legado) |
+| Caso | Magnitud | Valor (femras) | Valor (script legado) |
 |---|---|---|---|
 | Viga sana, P_max | 1511 N | ✓ | `viga_rilem.py` |
 | Presa sana, nivel de fallo | ~112.5 m | ✓ | `presa_ras.py` ANIOS=0 |
@@ -134,7 +134,7 @@ para la descripción detallada de cada test.
 
 ### What it does
 
-`rasfem` solves the coupled ASR damage model in 2D (plane problems):
+`femras` solves the coupled ASR damage model in 2D (plane problems):
 
 $$\boldsymbol{\varepsilon}_\text{mec} = \boldsymbol{\varepsilon}_\text{total} - \boldsymbol{\varepsilon}_\text{ASR}$$
 
@@ -172,9 +172,9 @@ Python 3.10+ required. On Windows, tick *"Add Python to PATH"* during install.
 ### Quickstart
 
 ```bash
-rasfem examples my_examples
-rasfem run my_examples/viga_rilem.yaml    # beam (~10 s)
-rasfem run my_examples/presa_ras.yaml     # dam  (~10–15 min with RAS service)
+femras examples my_examples
+femras run my_examples/viga_rilem.yaml    # beam (~10 s)
+femras run my_examples/presa_ras.yaml     # dam  (~10–15 min with RAS service)
 ```
 
 ### Local web app

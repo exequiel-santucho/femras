@@ -1,7 +1,7 @@
 """Time-multiplier functions ``lambda(t)`` for load histories.
 
 A time multiplier scales a reference edge load along a pseudo-time axis ``t``.
-It can be defined two ways (see :class:`~rasfem.config.TimeFunctionCfg`):
+It can be defined two ways (see :class:`~femras.config.TimeFunctionCfg`):
 
 * a piecewise-linear table of ``[t, value]`` points, or
 * an expression string such as ``"10*sin(2*pi*t)"``.

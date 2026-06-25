@@ -1,4 +1,4 @@
-"""Local web API (FastAPI) exposing the rasfem core.
+"""Local web API (FastAPI) exposing the femras core.
 
 Run with:
     pip install -e ".[web]"
@@ -27,14 +27,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from rasfem.config import Config, load_config
-from rasfem.run import run_config
+from femras.config import Config, load_config
+from femras.run import run_config
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 EXAMPLES = ROOT / "examples"
 
-app = FastAPI(title="rasfem", version="0.1.0")
+app = FastAPI(title="femras", version="0.1.0")
 
 
 @app.get("/")
@@ -96,11 +96,11 @@ def mesh_preview(payload: GeometryPayload):
     cfg = Config.model_validate(payload.cfg)
     geo = cfg.geometry
     if geo.kind == "beam":
-        from rasfem.mesh.structured import notched_beam_mesh
+        from femras.mesh.structured import notched_beam_mesh
         nodes, elements, _ = notched_beam_mesh(geo.L, geo.H, geo.nx, geo.ny,
                                                geo.notch_width, geo.notch_height)
     else:
-        from rasfem.mesh.polygon import conforming_t3_mesh
+        from femras.mesh.polygon import conforming_t3_mesh
         nodes, elements = conforming_t3_mesh(np.asarray(geo.vertices, float), geo.mesh_size)
     return {"nodes": nodes.tolist(), "elements": elements.tolist(),
             "element_type": cfg.problem.element_type}

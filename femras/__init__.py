@@ -1,4 +1,4 @@
-"""rasfem -- open-source 2D FEM for concrete affected by Alkali-Silica Reaction.
+"""femras -- open-source 2D FEM for concrete affected by Alkali-Silica Reaction.
 
 Scalar tensile damage (fracture-energy regularised) coupled with ASR expansion
 and property degradation. See ``docs/`` for the model and the user manual.

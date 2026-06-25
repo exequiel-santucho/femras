@@ -1,4 +1,4 @@
-"""Orchestrator: turn a validated :class:`~rasfem.config.Config` into a run.
+"""Orchestrator: turn a validated :class:`~femras.config.Config` into a run.
 
 Both the displacement-controlled beam and the hydraulic (load-controlled dam)
 paths are implemented.  Multi-segment load history and an arbitrary hydraulic

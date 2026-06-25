@@ -7,7 +7,7 @@ both control types through the same residual ``R = Fint - Fext``:
 * load control (e.g. water level) -> prescribed DOFs are the supports and
   ``Fext`` is the external (hydraulic + body) force of the current level.
 
-The state is carried as :class:`~rasfem.damage.GPState` arrays, so accepting or
+The state is carried as :class:`~femras.damage.GPState` arrays, so accepting or
 rejecting a step is a cheap array copy.
 """
 

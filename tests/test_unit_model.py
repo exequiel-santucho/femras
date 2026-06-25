@@ -2,9 +2,9 @@
 
 import numpy as np
 
-from rasfem.materials import MaterialDamage, elastic_matrix, elastic_matrix_unit
-from rasfem.ras import RASModel, xi_larive
-from rasfem.elements import q4, t3
+from femras.materials import MaterialDamage, elastic_matrix, elastic_matrix_unit
+from femras.ras import RASModel, xi_larive
+from femras.elements import q4, t3
 
 
 def test_elastic_split():

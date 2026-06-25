@@ -210,7 +210,7 @@ class SolverCfg(BaseModel):
 
 
 class OutputCfg(BaseModel):
-    dir: str = "resultados_rasfem"
+    dir: str = "resultados_femras"
     dpi: int = 200
     save_figures: bool = True
     save_tables: bool = True
@@ -231,7 +231,7 @@ class ServiceStageCfg(BaseModel):
 
 
 class Config(BaseModel):
-    name: str = "caso_rasfem"
+    name: str = "caso_femras"
     problem: ProblemCfg = Field(default_factory=ProblemCfg)
     material: MaterialCfg = Field(default_factory=MaterialCfg)
     ras: RASCfg = Field(default_factory=RASCfg)

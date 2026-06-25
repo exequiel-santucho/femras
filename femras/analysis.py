@@ -5,7 +5,7 @@ displacement on a top patch, recover the equivalent load from the reaction).
 ``run_load_control`` reproduces the dam overtopping (scale an external force,
 e.g. the hydraulic load, by a control level).
 
-Both wrap :func:`rasfem.solver.solve_step_newton` and carry the GPState arrays.
+Both wrap :func:`femras.solver.solve_step_newton` and carry the GPState arrays.
 Multi-segment history (cyclic/complex loading) is handled in run.py by calling
 these drivers once per segment and chaining the state.
 """

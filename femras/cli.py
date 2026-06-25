@@ -1,4 +1,4 @@
-"""Command-line interface: ``rasfem run config.yaml``.
+"""Command-line interface: ``femras run config.yaml``.
 
 Subcommands:
     run <config>      run an analysis from a ficha de datos (YAML/JSON)
@@ -28,15 +28,15 @@ def _cmd_run(args):
         if step % 10 == 0 or step == 1:
             print(f"  step {step:4d}  control={control:+.5e}  load={load:12.3f}  dmax={dmax:.4f}")
 
-    print(f"[rasfem] running '{cfg.name}' ({cfg.loading.mode} control, "
+    print(f"[femras] running '{cfg.name}' ({cfg.loading.mode} control, "
           f"{cfg.problem.element_type})")
     info = run_config(cfg, out_dir=args.out, progress=progress)
     s = info["summary"]
-    print(f"[rasfem] done. accepted={s['accepted']} rejected={s['rejected']}")
+    print(f"[femras] done. accepted={s['accepted']} rejected={s['rejected']}")
     if "load_max" in s:
-        print(f"[rasfem] load_max={s['load_max']:.3f}  "
+        print(f"[femras] load_max={s['load_max']:.3f}  "
               f"control@max={s['control_at_load_max']:.5e}  dmax={s['dmax_final']:.5f}")
-    print(f"[rasfem] results in: {info['out_dir']}")
+    print(f"[femras] results in: {info['out_dir']}")
 
 
 def _cmd_examples(args):
@@ -57,7 +57,7 @@ def _cmd_validate(args):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="rasfem", description="2D FEM for concrete with ASR/RAS")
+    p = argparse.ArgumentParser(prog="femras", description="2D FEM for concrete with ASR/RAS")
     sub = p.add_subparsers(dest="command", required=True)
 
     pr = sub.add_parser("run", help="run an analysis from a config file")
@@ -66,7 +66,7 @@ def main(argv=None):
     pr.set_defaults(func=_cmd_run)
 
     pe = sub.add_parser("examples", help="write bundled example configs")
-    pe.add_argument("dir", nargs="?", default="examples_rasfem")
+    pe.add_argument("dir", nargs="?", default="examples_femras")
     pe.set_defaults(func=_cmd_examples)
 
     pv = sub.add_parser("validate", help="validate and print a config")

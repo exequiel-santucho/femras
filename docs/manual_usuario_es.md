@@ -1,4 +1,4 @@
-# Manual de usuario — rasfem (Español)
+# Manual de usuario — femras (Español)
 
 > Herramienta MEF 2D para hormigón afectado por Reacción Álcali-Sílice (RAS/ASR).
 > Versión 0.1.0 · Licencia MIT · Gratuita y de código abierto.
@@ -25,7 +25,7 @@
 
 ## 1. ¿Qué hace esta herramienta?
 
-`rasfem` resuelve problemas planos de elementos finitos (MEF 2D) para estructuras
+`femras` resuelve problemas planos de elementos finitos (MEF 2D) para estructuras
 de hormigón afectadas por la **Reacción Álcali-Sílice (RAS)**. El modelo incluye:
 
 - **Expansión impuesta** por la RAS:
@@ -37,7 +37,7 @@ $$
 - **Degradación de propiedades** mecánicas (E, ft, fc, Gf) con el grado de reacción ξ.
 - **Dos casos de referencia validados**: viga entallada tipo RILEM y presa de gravedad.
 
-Los resultados de rasfem reproducen numéricamente los scripts de investigación
+Los resultados de femras reproducen numéricamente los scripts de investigación
 originales (`viga_rilem.py` y `presa_ras.py`) y están cubiertos por una suite
 de tests automáticos (ver [Sección 12](#12-tests-de-verificación)).
 
@@ -81,7 +81,7 @@ alternativa para descargar el código como archivo ZIP.
 ### 2.3 Conexión a internet (solo para la instalación)
 
 Se necesita conexión para descargar el código y las dependencias. Una vez
-instalado, `rasfem` funciona completamente sin internet.
+instalado, `femras` funciona completamente sin internet.
 
 ---
 
@@ -95,10 +95,10 @@ Hay dos formas de obtener el código. Elegí la que te resulte más cómoda.
    `https://github.com/exequiel-santucho/femras`
 2. Hacé clic en el botón verde **"Code"** → **"Download ZIP"**.
 3. Descomprimí el archivo en una carpeta de tu elección, por ejemplo:
-   - Windows: `C:\rasfem\`
-   - macOS/Linux: `~/rasfem/`
+   - Windows: `C:\femras\`
+   - macOS/Linux: `~/femras/`
 4. La carpeta descomprimida debe contener archivos como `pyproject.toml`,
-   `README.md` y una subcarpeta `rasfem/`.
+   `README.md` y una subcarpeta `femras/`.
 
 ### Opción B — Clonar con Git (recomendado)
 
@@ -127,10 +127,10 @@ Si no sabés navegar en la terminal:
 
 ```bash
 # Windows (reemplazá la ruta):
-cd C:\rasfem
+cd C:\femras
 
 # macOS/Linux:
-cd ~/rasfem
+cd ~/femras
 ```
 
 Podés verificar que estás en la carpeta correcta ejecutando `dir` (Windows) o
@@ -163,18 +163,18 @@ Con el entorno activo (o sin él, si preferís instalar globalmente):
 pip install -e .
 ```
 
-Este comando instala `rasfem` con sus dependencias base: numpy, scipy,
+Este comando instala `femras` con sus dependencias base: numpy, scipy,
 matplotlib, pydantic, pyyaml.
 
 Verificá que la instalación fue exitosa:
 
 ```bash
-rasfem --help
+femras --help
 ```
 
 Deberías ver algo como:
 ```
-usage: rasfem [-h] {run,examples,validate} ...
+usage: femras [-h] {run,examples,validate} ...
 ```
 
 ### 4.4 Extras opcionales
@@ -197,12 +197,12 @@ pip install -e ".[numba,web,gpu]"
 
 ## 5. Primera corrida — línea de comandos
 
-Asegurate de estar en la carpeta `rasfem/` con el entorno activo.
+Asegurate de estar en la carpeta `femras/` con el entorno activo.
 
 ### 5.1 Copiar los ejemplos a una carpeta de trabajo
 
 ```bash
-rasfem examples mis_ejemplos
+femras examples mis_ejemplos
 ```
 
 Esto crea la carpeta `mis_ejemplos/` con los archivos de configuración de los
@@ -211,14 +211,14 @@ dos casos de referencia.
 ### 5.2 Correr el ejemplo de la viga
 
 ```bash
-rasfem run mis_ejemplos/viga_rilem.yaml
+femras run mis_ejemplos/viga_rilem.yaml
 ```
 
 Durante el análisis verás el progreso en pantalla (paso, control, carga, daño).
-Al terminar, los resultados se guardan en `resultados_rasfem/viga_rilem/`:
+Al terminar, los resultados se guardan en `resultados_femras/viga_rilem/`:
 
 ```
-resultados_rasfem/
+resultados_femras/
   viga_rilem/
     resumen.json          <- pico de carga, daño máximo, parámetros del análisis
     curva.csv             <- tabla paso a paso (desplazamiento, carga)
@@ -231,16 +231,16 @@ resultados_rasfem/
 ### 5.3 Correr el ejemplo de la presa
 
 ```bash
-rasfem run mis_ejemplos/presa_ras.yaml
+femras run mis_ejemplos/presa_ras.yaml
 ```
 
 Este análisis es más largo (malla más grande, etapa de servicio RAS).
-Los resultados quedan en `resultados_rasfem/presa_ras/`.
+Los resultados quedan en `resultados_femras/presa_ras/`.
 
 ### 5.4 Validar una configuración sin correr
 
 ```bash
-rasfem validate mis_ejemplos/viga_rilem.yaml
+femras validate mis_ejemplos/viga_rilem.yaml
 ```
 
 Imprime todos los parámetros del análisis resueltos con sus valores por defecto,
@@ -283,7 +283,7 @@ solver:
 Luego corré normalmente:
 
 ```bash
-rasfem run mis_ejemplos/viga_numba.yaml
+femras run mis_ejemplos/viga_numba.yaml
 ```
 
 > **Tip:** `backend: auto` es la opción más práctica para uso diario — usará
@@ -326,7 +326,7 @@ Abrí tu navegador (Chrome, Firefox, Edge) y entrá a:
 http://127.0.0.1:8000
 ```
 
-Se cargará la interfaz de rasfem.
+Se cargará la interfaz de femras.
 
 ### 6.4 Usar la interfaz — modo Texto
 
@@ -701,7 +701,7 @@ solver:
 
 ```yaml
 output:
-  dir: resultados_rasfem   # carpeta de salida
+  dir: resultados_femras   # carpeta de salida
   dpi: 200                 # resolución de las figuras
   save_figures: true
   save_tables: true
@@ -717,14 +717,14 @@ referencia del modelo.
 ### 8.1 Presa sana — base de comparación
 
 ```bash
-rasfem examples mis_casos
+femras examples mis_casos
 # editar mis_casos/viga_rilem.yaml: ras.enabled = false
-rasfem run mis_casos/viga_rilem.yaml
+femras run mis_casos/viga_rilem.yaml
 ```
 
 O directamente desde la copia del ejemplo:
 ```bash
-rasfem run examples/viga_rilem.yaml
+femras run examples/viga_rilem.yaml
 ```
 
 Resultado esperado: carga máxima **P_max ≈ 1511 N** (viga sana con Q4, malla 86×21).
@@ -744,14 +744,14 @@ ras:
 ```
 
 ```bash
-rasfem run viga_300dias.yaml
+femras run viga_300dias.yaml
 ```
 
 A mayor edad (mayor ξ), mayor daño pre-existente y menor pico de carga.
 
 ### 8.3 Resultados
 
-Los archivos generados en `resultados_rasfem/viga_rilem/`:
+Los archivos generados en `resultados_femras/viga_rilem/`:
 
 | Archivo | Contenido |
 |---|---|
@@ -789,7 +789,7 @@ ras:
 O partí del ejemplo incluido y cambiá solo esas líneas.
 
 ```bash
-rasfem run presa_sana.yaml
+femras run presa_sana.yaml
 ```
 
 Resultado esperado: último nivel convergido ≈ **112.5 m** (nivel de fallo).
@@ -804,7 +804,7 @@ service:
 ```
 
 ```bash
-rasfem run examples/presa_ras.yaml
+femras run examples/presa_ras.yaml
 ```
 
 Resultado esperado: último nivel convergido ≈ **108.8 m** — menor que la presa
@@ -876,7 +876,7 @@ Campos principales:
 
 ## 11. Rendimiento y backends de cómputo
 
-El núcleo de `rasfem` está **vectorizado** con NumPy: todas las operaciones de
+El núcleo de `femras` está **vectorizado** con NumPy: todas las operaciones de
 constitutivo y ensamblaje se hacen sobre arrays, sin bucles Python por elemento.
 Esto es entre **10× y 50× más rápido** que los scripts originales (que usaban
 `deepcopy` por iteración y bucles por punto de Gauss).
@@ -930,7 +930,7 @@ ningún error.
 
 ## 12. Tests de verificación
 
-`rasfem` incluye una suite de tests automáticos que garantizan que los
+`femras` incluye una suite de tests automáticos que garantizan que los
 resultados del núcleo refactorizado son idénticos (dentro de tolerancia
 numérica) a los scripts originales de referencia.
 
@@ -986,13 +986,13 @@ pytest tests/ -v -m "not slow"
 
 | Test | Qué verifica |
 |---|---|
-| `test_constitutive_matches_legacy` | **2000 estados de punto de Gauss aleatorios**: el `ConstitutiveModel` vectorizado de `rasfem` produce exactamente el mismo tensor de tensiones y el mismo daño que la función `update_damage_material()` del script original `viga_rilem.py`, con error $< 10^{-9}$ (precisión de máquina). Esto garantiza que el refactor no alteró la física del modelo. |
+| `test_constitutive_matches_legacy` | **2000 estados de punto de Gauss aleatorios**: el `ConstitutiveModel` vectorizado de `femras` produce exactamente el mismo tensor de tensiones y el mismo daño que la función `update_damage_material()` del script original `viga_rilem.py`, con error $< 10^{-9}$ (precisión de máquina). Esto garantiza que el refactor no alteró la física del modelo. |
 
 #### Módulo `test_presa_regression.py` — Regresión de la presa
 
 | Test | Qué verifica | Marca |
 |---|---|---|
-| `test_linear_softening_matches_legacy` | **103 valores de kappa**: la ley de ablandamiento lineal implementada en rasfem ($d = \varepsilon_f(\kappa-\varepsilon_0)\,/\,[\kappa(\varepsilon_f-\varepsilon_0)]$) coincide con la función `damage_from_kappa()` del script `presa_ras.py`, incluyendo los casos límite (por debajo de $\varepsilon_0$, en la zona de ablandamiento, y más allá de $\varepsilon_f$). Error < $10^{-9}$. | rápido |
+| `test_linear_softening_matches_legacy` | **103 valores de kappa**: la ley de ablandamiento lineal implementada en femras ($d = \varepsilon_f(\kappa-\varepsilon_0)\,/\,[\kappa(\varepsilon_f-\varepsilon_0)]$) coincide con la función `damage_from_kappa()` del script `presa_ras.py`, incluyendo los casos límite (por debajo de $\varepsilon_0$, en la zona de ablandamiento, y más allá de $\varepsilon_f$). Error < $10^{-9}$. | rápido |
 | `test_dam_healthy_snapshot` | Análisis MEF completo de la **presa sana** cargada hasta H=100 m: el desplazamiento horizontal del coronamiento (ux ≈ 13.50 mm) y el daño máximo (dmax ≈ 0.784) coinciden con los valores validados del script `presa_ras.py` (ANIOS_RAS=0). Tolerancia: ±0.6 mm en ux, ±0.06 en dmax. | `slow` |
 | `test_dam_healthy_damage_monotonic` | En el análisis de presa sana hasta H=98 m, el daño es **irreversible**: no disminuye en ningún paso de carga. Verifica que el mecanismo de "memoria" del daño funciona correctamente. | `slow` |
 
@@ -1024,21 +1024,21 @@ contra los reportes de referencia del proyecto.
 
 ## 13. Resolución de problemas frecuentes
 
-### `rasfem: command not found` / `rasfem no se reconoce`
+### `femras: command not found` / `femras no se reconoce`
 
 El paquete no está instalado o el entorno virtual no está activo.
 - Activá el entorno: `.venv\Scripts\activate` (Windows) / `source .venv/bin/activate` (macOS/Linux).
 - Reinstalá: `pip install -e .`
 
-### `ModuleNotFoundError: No module named 'rasfem'`
+### `ModuleNotFoundError: No module named 'femras'`
 
-Estás corriendo Python desde fuera del entorno virtual, o instalaste rasfem en
-otro entorno. Verificá con `pip show rasfem`.
+Estás corriendo Python desde fuera del entorno virtual, o instalaste femras en
+otro entorno. Verificá con `pip show femras`.
 
 ### El análisis termina muy rápido sin resultados
 
 Revisá que el archivo YAML no tenga errores de indentación (los YAML son
-sensibles a los espacios). Usá `rasfem validate mi_caso.yaml` para detectarlos.
+sensibles a los espacios). Usá `femras validate mi_caso.yaml` para detectarlos.
 
 ### Error de convergencia del solucionador
 

@@ -1,4 +1,4 @@
-# User manual — rasfem (English)
+# User manual — femras (English)
 
 > 2D FEM tool for concrete affected by the Alkali-Silica Reaction (ASR/RAS).
 > Version 0.1.0 · MIT License · Free and open-source.
@@ -25,7 +25,7 @@
 
 ## 1. What does this tool do?
 
-`rasfem` solves 2D plane finite element problems for concrete structures affected
+`femras` solves 2D plane finite element problems for concrete structures affected
 by the **Alkali-Silica Reaction (ASR)**. The model includes:
 
 - **Imposed ASR expansion**:
@@ -37,7 +37,7 @@ $$
 - **Mechanical property degradation** (E, ft, fc, Gf) with reaction extent ξ.
 - **Two numerically validated reference cases**: notched RILEM beam and gravity dam.
 
-Results from rasfem numerically reproduce the original research scripts
+Results from femras numerically reproduce the original research scripts
 (`viga_rilem.py` and `presa_ras.py`) and are covered by an automated test suite
 (see [Section 12](#12-verification-tests)).
 
@@ -77,7 +77,7 @@ explains how to download the code as a ZIP.
 ### 2.3 Internet connection (installation only)
 
 An internet connection is needed to download the code and its dependencies.
-Once installed, `rasfem` works completely offline.
+Once installed, `femras` works completely offline.
 
 ---
 
@@ -91,10 +91,10 @@ Choose the option that suits you best.
    `https://github.com/exequiel-santucho/femras`
 2. Click the green **"Code"** button → **"Download ZIP"**.
 3. Extract the ZIP to a folder of your choice, for example:
-   - Windows: `C:\rasfem\`
-   - macOS/Linux: `~/rasfem/`
+   - Windows: `C:\femras\`
+   - macOS/Linux: `~/femras/`
 4. The extracted folder should contain `pyproject.toml`, `README.md`, and a
-   `rasfem/` subfolder.
+   `femras/` subfolder.
 
 ### Option B — Clone with Git (recommended)
 
@@ -122,10 +122,10 @@ If you are new to terminal navigation:
 
 ```bash
 # Windows (replace the path):
-cd C:\rasfem
+cd C:\femras
 
 # macOS / Linux:
-cd ~/rasfem
+cd ~/femras
 ```
 
 Verify you are in the right folder: run `dir` (Windows) or `ls` (macOS/Linux).
@@ -133,7 +133,7 @@ You should see `pyproject.toml` in the listing.
 
 ### 4.2 Create a virtual environment (recommended)
 
-A virtual environment isolates `rasfem`'s dependencies from other Python
+A virtual environment isolates `femras`'s dependencies from other Python
 projects. It is optional but a good practice:
 
 ```bash
@@ -158,18 +158,18 @@ With the environment active (or without it if you prefer a system-wide install):
 pip install -e .
 ```
 
-This installs `rasfem` with its base dependencies: numpy, scipy, matplotlib,
+This installs `femras` with its base dependencies: numpy, scipy, matplotlib,
 pydantic, pyyaml.
 
 Verify the installation:
 
 ```bash
-rasfem --help
+femras --help
 ```
 
 You should see:
 ```
-usage: rasfem [-h] {run,examples,validate} ...
+usage: femras [-h] {run,examples,validate} ...
 ```
 
 ### 4.4 Optional extras
@@ -192,12 +192,12 @@ pip install -e ".[numba,web]"
 
 ## 5. First run — command line
 
-Make sure you are in the `rasfem/` folder with the virtual environment active.
+Make sure you are in the `femras/` folder with the virtual environment active.
 
 ### 5.1 Copy the examples to a working folder
 
 ```bash
-rasfem examples my_examples
+femras examples my_examples
 ```
 
 This creates the `my_examples/` folder with the configuration files for both
@@ -206,15 +206,15 @@ reference cases.
 ### 5.2 Run the beam example
 
 ```bash
-rasfem run my_examples/viga_rilem.yaml
+femras run my_examples/viga_rilem.yaml
 ```
 
 During the analysis you will see progress in the terminal (step, control,
 load, damage). When finished, results are saved to
-`resultados_rasfem/viga_rilem/`:
+`resultados_femras/viga_rilem/`:
 
 ```
-resultados_rasfem/
+resultados_femras/
   viga_rilem/
     resumen.json          <- peak load, max damage, analysis parameters
     curva.csv             <- step-by-step table (displacement, load)
@@ -227,16 +227,16 @@ resultados_rasfem/
 ### 5.3 Run the dam example
 
 ```bash
-rasfem run my_examples/presa_ras.yaml
+femras run my_examples/presa_ras.yaml
 ```
 
 This analysis takes longer (larger mesh, RAS service stage).
-Results go to `resultados_rasfem/presa_ras/`.
+Results go to `resultados_femras/presa_ras/`.
 
 ### 5.4 Validate a config without running
 
 ```bash
-rasfem validate my_examples/viga_rilem.yaml
+femras validate my_examples/viga_rilem.yaml
 ```
 
 Prints all resolved parameters with their default values — useful to catch YAML
@@ -278,7 +278,7 @@ solver:
 Then run as usual:
 
 ```bash
-rasfem run my_examples/beam_numba.yaml
+femras run my_examples/beam_numba.yaml
 ```
 
 > **Tip:** `backend: auto` is the most practical choice for everyday use — it
@@ -322,7 +322,7 @@ Open your browser (Chrome, Firefox, Edge) and go to:
 http://127.0.0.1:8000
 ```
 
-The rasfem interface will load.
+The femras interface will load.
 
 ### 6.4 Using the interface — Text mode
 
@@ -693,7 +693,7 @@ solver:
 ### 8.1 Healthy beam — baseline
 
 ```bash
-rasfem run examples/viga_rilem.yaml
+femras run examples/viga_rilem.yaml
 ```
 
 Expected result: **P_max ≈ 1511 N** (healthy beam, Q4, 86×21 mesh).
@@ -712,7 +712,7 @@ ras:
 ```
 
 ```bash
-rasfem run beam_300d.yaml
+femras run beam_300d.yaml
 ```
 
 Higher age → higher pre-existing damage → lower peak load.
@@ -736,7 +736,7 @@ Expected result: last converged level ≈ **112.5 m** (failure level).
 ### 9.2 Dam with 16 years of ASR
 
 ```bash
-rasfem run examples/presa_ras.yaml
+femras run examples/presa_ras.yaml
 ```
 
 Expected result: last converged level ≈ **108.8 m** — lower than the healthy
@@ -781,7 +781,7 @@ In the beam, damage localises at the notch tip. In the dam, at the heel
 
 ## 11. Performance and compute backends
 
-The `rasfem` core is **vectorised** with NumPy: all constitutive and assembly
+The `femras` core is **vectorised** with NumPy: all constitutive and assembly
 operations work on arrays, with no Python loops per element. This is
 **10×–50× faster** than the original scripts (which used `deepcopy` per
 iteration and per-Gauss-point Python objects).
@@ -833,7 +833,7 @@ NumPy silently.
 
 ## 12. Verification tests
 
-`rasfem` includes an automated test suite that guarantees the refactored
+`femras` includes an automated test suite that guarantees the refactored
 engine reproduces the original research scripts to numerical precision.
 
 ### 12.1 Running the tests
@@ -888,13 +888,13 @@ pytest tests/ -v -m "not slow"
 
 | Test | What it verifies |
 |---|---|
-| `test_constitutive_matches_legacy` | **2000 random Gauss-point states**: the vectorised `ConstitutiveModel` of `rasfem` produces exactly the same stress tensor and damage as `update_damage_material()` from the original `viga_rilem.py` script, with error $< 10^{-9}$ (machine precision). This proves the refactor did not alter the beam physics. |
+| `test_constitutive_matches_legacy` | **2000 random Gauss-point states**: the vectorised `ConstitutiveModel` of `femras` produces exactly the same stress tensor and damage as `update_damage_material()` from the original `viga_rilem.py` script, with error $< 10^{-9}$ (machine precision). This proves the refactor did not alter the beam physics. |
 
 #### `test_presa_regression.py` — Dam regression tests
 
 | Test | What it verifies | Mark |
 |---|---|---|
-| `test_linear_softening_matches_legacy` | **103 values of kappa**: the linear softening law in rasfem ($d = \varepsilon_f(\kappa-\varepsilon_0)\,/\,[\kappa(\varepsilon_f-\varepsilon_0)]$) matches `damage_from_kappa()` from `presa_ras.py`, including edge cases (below $\varepsilon_0$, in the softening zone, beyond $\varepsilon_f$). Error < $10^{-9}$. | fast |
+| `test_linear_softening_matches_legacy` | **103 values of kappa**: the linear softening law in femras ($d = \varepsilon_f(\kappa-\varepsilon_0)\,/\,[\kappa(\varepsilon_f-\varepsilon_0)]$) matches `damage_from_kappa()` from `presa_ras.py`, including edge cases (below $\varepsilon_0$, in the softening zone, beyond $\varepsilon_f$). Error < $10^{-9}$. | fast |
 | `test_dam_healthy_snapshot` | Full FEM analysis of the **healthy dam** loaded to H=100 m: crest displacement (ux ≈ 13.50 mm) and maximum damage (dmax ≈ 0.784) match values validated against `presa_ras.py` (ANIOS_RAS=0). Tolerance: ±0.6 mm in ux, ±0.06 in dmax. | `slow` |
 | `test_dam_healthy_damage_monotonic` | In the healthy-dam run to H=98 m, damage is **irreversible**: it never decreases at any load step. Verifies the damage memory mechanism. | `slow` |
 
@@ -926,20 +926,20 @@ project reference reports.
 
 ## 13. Troubleshooting
 
-### `rasfem: command not found`
+### `femras: command not found`
 
 The package is not installed or the virtual environment is not active.
 - Activate: `.venv\Scripts\activate` (Windows) / `source .venv/bin/activate` (macOS/Linux).
 - Reinstall: `pip install -e .`
 
-### `ModuleNotFoundError: No module named 'rasfem'`
+### `ModuleNotFoundError: No module named 'femras'`
 
-You are running Python from a different environment. Check with `pip show rasfem`.
+You are running Python from a different environment. Check with `pip show femras`.
 
 ### The analysis ends immediately without results
 
 Check for YAML indentation errors (YAML is whitespace-sensitive). Use
-`rasfem validate my_case.yaml` to catch them.
+`femras validate my_case.yaml` to catch them.
 
 ### Solver convergence errors
 

@@ -1,6 +1,6 @@
 # PRD — Apoyos sobre aristas completas del polígono
 
-**Proyecto:** rasfem — herramienta FEM 2D para hormigón con RAS/ASR  
+**Proyecto:** femras — herramienta FEM 2D para hormigón con RAS/ASR  
 **Repositorio:** https://github.com/exequiel-santucho/femras  
 **Fecha:** 2026-06-12  
 **Estado:** ✅ Implementado (2026-06-25)
@@ -28,7 +28,7 @@
 
 ### Estado actual
 
-rasfem permite resolver dos tipos de análisis:
+femras permite resolver dos tipos de análisis:
 
 | Tipo | Geometría | Condiciones de borde actuales |
 |---|---|---|
@@ -80,7 +80,7 @@ Permitir que el usuario defina condiciones de contorno de desplazamiento (apoyos
 
 La arista de apoyo se exporta como un nuevo campo `edge_supports` en `loading` del JSON (ver sección 3.3).
 
-### 3.2 Backend — Schema de configuración (`rasfem/config.py`)
+### 3.2 Backend — Schema de configuración (`femras/config.py`)
 
 Agregar el modelo:
 
@@ -105,7 +105,7 @@ class Config(BaseModel):
     edge_supports: List[EdgeSupportCfg] = Field(default_factory=list)  # aristas (nuevo)
 ```
 
-### 3.3 Backend — Driver `_run_dam` (`rasfem/run.py`)
+### 3.3 Backend — Driver `_run_dam` (`femras/run.py`)
 
 **Lógica de resolución de condiciones de borde para `PolygonGeometry`:**
 
@@ -134,7 +134,7 @@ Los apoyos puntuales se procesan **después** de los de arista, pudiendo sobrees
 
 ### 3.4 Backend — Función auxiliar de nodos sobre arista
 
-Usar la función `face_boundary_edges` ya existente (`rasfem/mesh/polygon.py`) para encontrar los nodos de la malla sobre cada arista. Los nodos relevantes son los endpoints únicos de las aristas de contorno sobre el segmento.
+Usar la función `face_boundary_edges` ya existente (`femras/mesh/polygon.py`) para encontrar los nodos de la malla sobre cada arista. Los nodos relevantes son los endpoints únicos de las aristas de contorno sobre el segmento.
 
 ```python
 def nodes_on_segment(nodes, elements, p1, p2, tol=None) -> np.ndarray:
@@ -188,9 +188,9 @@ Una arista tiene `roller_x`. Un vértice en una esquina tiene apoyo `fixed` adic
 
 | Archivo | Cambio |
 |---|---|
-| `rasfem/config.py` | Agregar `EdgeSupportCfg`; agregar `edge_supports` a `Config` |
-| `rasfem/mesh/polygon.py` | Agregar `nodes_on_segment(nodes, elements, p1, p2)` |
-| `rasfem/run.py` | Actualizar `_run_dam` para procesar `cfg.edge_supports`; mantener fallback `base_nodes` si vacío |
+| `femras/config.py` | Agregar `EdgeSupportCfg`; agregar `edge_supports` a `Config` |
+| `femras/mesh/polygon.py` | Agregar `nodes_on_segment(nodes, elements, p1, p2)` |
+| `femras/run.py` | Actualizar `_run_dam` para procesar `cfg.edge_supports`; mantener fallback `base_nodes` si vacío |
 | `web/editor.js` | Extender `TOOL.SUPPORT` para detectar clic sobre arista; guardar `poly.edgeSupports = []`; renderizar símbolos sobre arista; exportar `edge_supports` en el JSON |
 | `web/style.css` | Estilos para arista de apoyo resaltada (opcional, reusar colores existentes) |
 | `web/index.html` | Sin cambios estructurales (la herramienta SUPPORT ya existe en la paleta) |

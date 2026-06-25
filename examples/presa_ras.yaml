@@ -85,7 +85,7 @@ service:
   xi_rate: 3.0                  # tasa de crecimiento exponencial de xi
 
 output:
-  dir: resultados_rasfem
+  dir: resultados_femras
   dpi: 200
   save_figures: true
   save_tables: true

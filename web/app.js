@@ -1,4 +1,4 @@
-// rasfem web app — text mode + canvas integration.
+// femras web app — text mode + canvas integration.
 
 const I18N = {
   es: {

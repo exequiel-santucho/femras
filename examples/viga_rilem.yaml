@@ -71,7 +71,7 @@ solver:
   backend: auto
 
 output:
-  dir: resultados_rasfem
+  dir: resultados_femras
   dpi: 200
   save_figures: true
   save_tables: true

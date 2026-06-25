@@ -143,7 +143,7 @@ def nodes_on_segment(nodes, elements, p1, p2, tol=None):
 
     Built on :func:`face_boundary_edges`, so it shares the same relative
     tolerance and only returns nodes on *free* boundary edges of the segment.
-    Used to apply an :class:`~rasfem.config.EdgeSupportCfg` to a whole edge.
+    Used to apply an :class:`~femras.config.EdgeSupportCfg` to a whole edge.
     """
     edges = face_boundary_edges(nodes, elements, p1, p2, tol)
     if not edges:

@@ -1,4 +1,4 @@
-# PRD — rasfem: Herramienta FEM 2D para Hormigón con RAS/ASR
+# PRD — femras: Herramienta FEM 2D para Hormigón con RAS/ASR
 
 **Repositorio:** https://github.com/exequiel-santucho/femras  
 **Licencia:** MIT  
@@ -9,7 +9,7 @@
 
 ## 1. Descripción general
 
-**rasfem** es una herramienta de elementos finitos 2D, libre y de código abierto, para el análisis de estructuras de hormigón afectadas por la **Reacción Álcali-Sílice (RAS/ASR)**. Combina un modelo de daño escalar de tracción regularizado por energía de fractura con la expansión impuesta y la degradación de propiedades mecánicas producida por la RAS.
+**femras** es una herramienta de elementos finitos 2D, libre y de código abierto, para el análisis de estructuras de hormigón afectadas por la **Reacción Álcali-Sílice (RAS/ASR)**. Combina un modelo de daño escalar de tracción regularizado por energía de fractura con la expansión impuesta y la degradación de propiedades mecánicas producida por la RAS.
 
 ### Audiencia objetivo
 
@@ -84,8 +84,8 @@ Este parámetro reproduce exactamente las dos convenciones de los scripts legado
 ### 3.1 Estructura del paquete
 
 ```
-rasfem/                     ← raíz del repositorio
-├── rasfem/                 ← paquete Python principal
+femras/                     ← raíz del repositorio
+├── femras/                 ← paquete Python principal
 │   ├── config.py           ← schema Pydantic (ficha de datos)
 │   ├── run.py              ← orquestador (config → resultado)
 │   ├── analysis.py         ← drivers incrementales adaptativos
@@ -328,7 +328,7 @@ service:
 
 ```yaml
 output:
-  dir: resultados_rasfem   # directorio de salida
+  dir: resultados_femras   # directorio de salida
   dpi: 200
   save_figures: true
   save_tables: true
@@ -402,12 +402,12 @@ Cada paso del stepping resuelve el sistema no lineal mediante Newton-Raphson:
 ## 7. Interfaz de línea de comandos (CLI)
 
 ```bash
-rasfem --help                     # ayuda
-rasfem run config.yaml            # ejecutar análisis
-rasfem examples [destino/]        # copiar ejemplos a directorio de trabajo
+femras --help                     # ayuda
+femras run config.yaml            # ejecutar análisis
+femras examples [destino/]        # copiar ejemplos a directorio de trabajo
 ```
 
-Salida en `resultados_rasfem/<nombre>/`:
+Salida en `resultados_femras/<nombre>/`:
 - `summary.json` — resumen: P_max, δ_max, nivel de fallo, xi, n_nodos, n_elementos.
 - `curve.csv` / `damage.csv` — tablas de la curva y del mapa de daño.
 - `curve.png` / `damage.png` — figuras PNG (configurable DPI).
@@ -547,7 +547,7 @@ CSS con variables CSS (dark theme):
 - [x] Historia de carga cíclica (`history: List[float]`)
 - [x] Etapa de servicio RAS (presa: xi creciente, nivel sinusoidal anual)
 - [x] Postproceso: curvas, mapas de daño, tablas, resumen JSON
-- [x] CLI (`rasfem run`, `rasfem examples`)
+- [x] CLI (`femras run`, `femras examples`)
 - [x] API FastAPI con endpoints de run + mesh_preview
 - [x] App web: modo Texto (JSON + Plotly + SVG mesh)
 - [x] App web: modo Canvas con 7 herramientas, 3 paneles, atajos de teclado
@@ -620,9 +620,9 @@ El backend Numba tiene hooks de detección pero no kernels JIT implementados. Pa
 
 ### CU-1: Análisis de viga RILEM con RAS
 
-1. El usuario copia los ejemplos (`rasfem examples`).
+1. El usuario copia los ejemplos (`femras examples`).
 2. Edita `viga_rilem.yaml`: cambia `ras.mode` a `larive`, `ras.age_days` a 485.
-3. Ejecuta `rasfem run viga_rilem.yaml`.
+3. Ejecuta `femras run viga_rilem.yaml`.
 4. Compara la curva P–δ resultante con la del hormigón sano para cuantificar la pérdida de capacidad por RAS.
 
 ### CU-2: Evaluación de presa de gravedad con servicio RAS

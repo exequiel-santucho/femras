@@ -3,15 +3,15 @@
 import numpy as np
 import pytest
 
-from rasfem.timefunc import make_time_multiplier
-from rasfem.loads import edge_traction_force
-from rasfem.mesh.polygon import conforming_t3_mesh, nodes_on_segment
-from rasfem.config import (
+from femras.timefunc import make_time_multiplier
+from femras.loads import edge_traction_force
+from femras.mesh.polygon import conforming_t3_mesh, nodes_on_segment
+from femras.config import (
     Config, ProblemCfg, MaterialCfg, RASCfg, PolygonGeometry,
     EdgeSupportCfg, EdgeLoadCfg, NodalLoadCfg, TimeFunctionCfg,
     TimeHistoryLoad, OutputCfg,
 )
-from rasfem.run import run_config
+from femras.run import run_config
 
 
 # ─── timefunc ────────────────────────────────────────────────────────────────
