@@ -323,28 +323,72 @@ header .spacer { flex: 1; }
 #canvas-statusbar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   padding: 0 10px;
+  min-height: 30px;
   background: var(--surface);
   border-top: 1px solid var(--border);
   font-size: 11px;
   color: var(--muted);
+  flex-wrap: wrap;
 }
 
 #canvas-statusbar .sb-sep {
   width: 1px;
   height: 14px;
   background: var(--border);
+  flex-shrink: 0;
 }
 
-/* Right panel */
+/* Coordinate entry inputs in statusbar */
+#ed-entry-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.coord-input {
+  width: 70px;
+  padding: 1px 4px;
+  font-size: 11px;
+  height: 20px;
+  text-align: right;
+}
+
+.entry-lbl {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Snap label */
+#snap-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  color: var(--muted);
+}
+#snap-label input[type="checkbox"] { width: auto; margin: 0; }
+#snap-label:has(input:checked) { color: var(--accent); }
+
+/* Right panel — single scrollable column */
 #right-panel {
   background: var(--surface);
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
 }
+#right-panel::-webkit-scrollbar { width: 5px; }
+#right-panel::-webkit-scrollbar-track { background: transparent; }
+#right-panel::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 
 /* Accordion sections */
 .acc-section {
@@ -379,14 +423,12 @@ header .spacer { flex: 1; }
 .acc-body {
   display: none;
   padding: 0 12px 10px;
-  overflow-y: auto;
 }
 .acc-section.expanded .acc-body { display: block; }
 
-/* Scrollable filler section (templates + export) */
+/* Bottom section (templates + export) */
 #panel-bottom {
-  flex: 1;
-  overflow-y: auto;
+  flex: 0 0 auto;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -456,3 +498,127 @@ header .spacer { flex: 1; }
 
 /* ── Plotly plot area ─────────────────────────────────────────────────────────── */
 .plot-wrap { background: var(--bg); border-radius: var(--radius-sm); overflow: hidden; }
+
+/* Canvas-embedded results */
+#canvas-curve { width: 100%; height: 160px; }
+
+#ed-run-status {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  min-height: 16px;
+  word-break: break-word;
+}
+
+#result-files a { display: inline-block; color: var(--accent); margin: 1px 0; }
+
+/* ── Results viewer overlay ───────────────────────────────────────────────── */
+#ed-canvas-wrap { position: relative; }
+
+#results-viewer {
+  position: absolute;
+  inset: 6px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+#rv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+#rv-toolbar .spacer { flex: 1; }
+#rv-toolbar label { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+.rv-fields { display: flex; gap: 3px; }
+.rv-field {
+  background: var(--surface2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.rv-field:hover { background: var(--border2); color: var(--text); }
+.rv-field.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.rv-ctl { display: flex; align-items: center; gap: 5px; }
+.rv-ctl input[type="range"] { width: 160px; accent-color: var(--accent); }
+.rv-num { color: var(--accent); font-size: 11px; min-width: 36px; }
+
+#rv-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  position: relative;
+}
+
+#res-svg {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: #0b1622;
+  display: block;
+}
+
+#rv-colorbar {
+  width: 70px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 6px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+#rv-colorbar .cb-lbl { font-size: 10px; color: var(--text); text-align: center; }
+#rv-colorbar .cb-bar {
+  width: 18px;
+  flex: 1;
+  min-height: 80px;
+  border-radius: 3px;
+  border: 1px solid var(--border2);
+}
+#rv-colorbar .cb-min, #rv-colorbar .cb-max { font-size: 10px; color: var(--muted); }
+
+#rv-curves {
+  width: 300px;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+.rv-curve-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+#rv-curve-load, #rv-curve-dmg { width: 100%; height: 180px; }
+
+#rv-info {
+  display: flex;
+  gap: 16px;
+  padding: 5px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+#rv-info b { color: var(--accent); }

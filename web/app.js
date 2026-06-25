@@ -16,8 +16,8 @@ const I18N = {
     done:      "Listo",
     err:       "Error",
     // Header
-    mode_text:   "Texto",
-    mode_canvas: "Canvas",
+    mode_text:   "Ficha de datos",
+    mode_canvas: "Modelo",
     // Canvas tools
     canvas: {
       tool_vertex:   "Vértice",
@@ -38,8 +38,9 @@ const I18N = {
       tpl_dam:       "Presa",
       tpl_beam:      "Viga",
       sec_geometry:  "Geometría",
-      lbl_meshsize:  "Tamaño malla (mm)",
-      lbl_thickness: "Espesor (mm)",
+      lbl_casename:  "Nombre del caso",
+      lbl_meshsize:  "Tam. malla (m)",
+      lbl_thickness: "Espesor (m)",
       lbl_probtype:  "Tipo de problema",
       opt_strain:    "Def. plana",
       opt_stress:    "Tens. plana",
@@ -74,8 +75,42 @@ const I18N = {
       ins_ptang:        "p tang.",
       ins_fn_expr:      "Función f(t)",
       ins_fn_points:    "Puntos (t, valor)",
-      btn_preview: "Ver malla",
-      btn_export:  "Exportar a Texto",
+      btn_preview:  "Ver malla",
+      btn_run:      "Calcular",
+      btn_download: "Descargar ficha (.yaml)",
+      btn_export:   "Ver ficha",
+      btn_new:      "Nuevo",
+      snap_grid:      "Snap",
+      lbl_gridstep:   "Paso grilla (m)",
+      lbl_gridstep_x: "Snap X (m)",
+      lbl_gridstep_y: "Snap Y (m)",
+      sec_material: "Material y RAS",
+      lbl_E0:       "E₀ (MPa)",
+      lbl_nu:       "ν",
+      lbl_ft0:      "ft₀ (MPa)",
+      lbl_fc0:      "fc₀ (MPa)",
+      lbl_Gf0:      "Gf₀ (N/mm)",
+      lbl_softlaw:  "Abland.",
+      opt_linear:   "Lineal",
+      opt_exp:      "Exponencial",
+      lbl_ras_enabled: "Considerar efecto RAS",
+      lbl_ras_mode: "Modo RAS",
+      opt_ras_imposed: "Impuesto (ξ)",
+      opt_ras_larive:  "Larive (edad)",
+      lbl_xi:       "ξ impuesto",
+      lbl_age:      "Edad (días)",
+      lbl_epsinf:   "ε∞ vol.",
+      sec_results:  "Resultados",
+      btn_viewer:   "Ver gráficos ▸",
+      fld_deformed: "Deformada",
+      fld_damage:   "Daño",
+      rv_time:      "Instante",
+      rv_scale:     "Escala ×",
+      rv_auto:      "Auto",
+      rv_curves:    "Curvas",
+      rv_close:     "✕ Cerrar",
+      rv_loaddisp:  "Carga–desplazamiento",
+      rv_dmgevol:   "Evolución del daño máximo",
       // Status
       st_template: "Plantilla cargada. Editá los vértices y generá la malla.",
       st_closed:   "Polígono cerrado. Agregá apoyos y cargas.",
@@ -117,8 +152,9 @@ const I18N = {
       tpl_dam:       "Dam",
       tpl_beam:      "Beam",
       sec_geometry:  "Geometry",
-      lbl_meshsize:  "Mesh size (mm)",
-      lbl_thickness: "Thickness (mm)",
+      lbl_casename:  "Case name",
+      lbl_meshsize:  "Mesh size (m)",
+      lbl_thickness: "Thickness (m)",
       lbl_probtype:  "Problem type",
       opt_strain:    "Plane strain",
       opt_stress:    "Plane stress",
@@ -153,8 +189,42 @@ const I18N = {
       ins_ptang:        "p tang.",
       ins_fn_expr:      "Function f(t)",
       ins_fn_points:    "Points (t, value)",
-      btn_preview: "Preview mesh",
-      btn_export:  "Export to Text",
+      btn_preview:  "Preview mesh",
+      btn_run:      "Run",
+      btn_download: "Download sheet (.yaml)",
+      btn_export:   "View sheet",
+      btn_new:      "New",
+      snap_grid:      "Snap",
+      lbl_gridstep:   "Grid step (m)",
+      lbl_gridstep_x: "Snap X (m)",
+      lbl_gridstep_y: "Snap Y (m)",
+      sec_material: "Material & RAS",
+      lbl_E0:       "E₀ (MPa)",
+      lbl_nu:       "ν",
+      lbl_ft0:      "ft₀ (MPa)",
+      lbl_fc0:      "fc₀ (MPa)",
+      lbl_Gf0:      "Gf₀ (N/mm)",
+      lbl_softlaw:  "Softening",
+      opt_linear:   "Linear",
+      opt_exp:      "Exponential",
+      lbl_ras_enabled: "Consider RAS effect",
+      lbl_ras_mode: "RAS mode",
+      opt_ras_imposed: "Imposed (ξ)",
+      opt_ras_larive:  "Larive (age)",
+      lbl_xi:       "ξ imposed",
+      lbl_age:      "Age (days)",
+      lbl_epsinf:   "ε∞ vol.",
+      sec_results:  "Results",
+      btn_viewer:   "View plots ▸",
+      fld_deformed: "Deformed",
+      fld_damage:   "Damage",
+      rv_time:      "Instant",
+      rv_scale:     "Scale ×",
+      rv_auto:      "Auto",
+      rv_curves:    "Curves",
+      rv_close:     "✕ Close",
+      rv_loaddisp:  "Load–displacement",
+      rv_dmgevol:   "Max-damage evolution",
       st_template: "Template loaded. Edit vertices and generate the mesh.",
       st_closed:   "Polygon closed. Add supports and loads.",
       st_open:     "Double-click to close the polygon.",
@@ -247,14 +317,15 @@ async function run() {
   } finally { $("run").disabled = false; }
 }
 
-function plotCurve(curve, cfg) {
+function plotCurve(curve, cfg, targetId) {
+  const divId = targetId || "curve";
   const mode = cfg.loading && cfg.loading.mode;
   const isDam  = mode === "hydraulic";
   const isTime = mode === "time_history";
   const xLabel = isTime ? "t" : isDam ? "H" : "|δ|";
   const yLabel = isTime ? "max|u|" : isDam ? "ux crest" : "P";
   const x = curve.control.map(Math.abs);
-  Plotly.newPlot("curve", [
+  Plotly.newPlot(divId, [
     { x, y: curve.load, mode: "lines+markers", name: yLabel,
       line: { color: "#60a5fa" } },
     { x, y: curve.dmax, mode: "lines", name: "dmax", yaxis: "y2",
@@ -271,10 +342,15 @@ function plotCurve(curve, cfg) {
 }
 
 function showSummary(s) {
+  showSummaryIn(s, "summary");
+}
+
+function showSummaryIn(s, targetId) {
   const fmt = v => (typeof v === "number" ? v.toExponential(4) : String(v));
   const rows = Object.entries(s).map(([k, v]) =>
     `<div>${k}</div><div>${fmt(v)}</div>`);
-  $("summary").innerHTML = rows.join("");
+  const el = document.getElementById(targetId);
+  if (el) el.innerHTML = rows.join("");
 }
 
 // ── Event delegation ──────────────────────────────────────────────────────────
@@ -308,6 +384,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".mode-tab").forEach(btn =>
     btn.addEventListener("click", () => switchView(btn.dataset.view)));
   applyI18n();
-  loadExample("beam");
+  // Start in canvas (model) view with empty state — no preloaded template
+  switchView("canvas");
   initEditor();
 });

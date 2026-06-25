@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 
 from .analysis import LevelStepping, SteppingOptions, AnalysisResult
-from .analysis import run_displacement_control, run_load_control
+from .analysis import run_displacement_control, run_load_control, _field_snapshot
 from .assembly import Assembler
 from .config import Config
 from .damage import GPState
@@ -115,6 +115,9 @@ def _run_beam(cfg: Config, out_dir, progress) -> dict:
     U = U0.copy()
     delta_curr = 0.0
 
+    snapshots = [_field_snapshot(assembler, model, U, state, 0.0, 0.0)]
+    snap_every = 5  # capture every 5 accepted steps; payload is downsampled
+
     for seg_target in targets:
         direction = 1.0 if seg_target >= delta_curr else -1.0
         step_mag = abs(ld.step_initial)
@@ -132,7 +135,8 @@ def _run_beam(cfg: Config, out_dir, progress) -> dict:
 
         seg = run_displacement_control(
             assembler, model, state, U, support_dofs, load_dofs, load_base,
-            stepping, cfg.solver_options(), progress=progress)
+            stepping, cfg.solver_options(), progress=progress,
+            snapshots=snapshots, snapshot_every=snap_every)
 
         all_control.extend(seg.control.tolist())
         all_load.extend(seg.load.tolist())
@@ -144,9 +148,14 @@ def _run_beam(cfg: Config, out_dir, progress) -> dict:
         U = seg.U_final.copy()
         delta_curr = seg_target
 
+    # Always capture the final state as the last snapshot
+    if all_load:
+        snapshots.append(_field_snapshot(assembler, model, U, state,
+                                         all_control[-1], all_load[-1]))
+
     result = AnalysisResult(
         np.array(all_control), np.array(all_load), np.array(all_dmax),
-        U, state, total_accepted, total_rejected, all_table)
+        U, state, total_accepted, total_rejected, all_table, snapshots)
 
     out = Path(out_dir or cfg.output.dir) / cfg.name
     summary = pp.save_summary(out, cfg, result,
@@ -159,8 +168,9 @@ def _run_beam(cfg: Config, out_dir, progress) -> dict:
         pp.save_figures(out, nodes, elements, result, assembler, model,
                         dpi=cfg.output.dpi,
                         control_label="|delta| [mm]", load_label="P [N]")
+    fields = pp.save_fields(out, nodes, elements, result, assembler, model)
     return {"result": result, "summary": summary, "out_dir": str(out),
-            "nodes": nodes, "elements": elements}
+            "nodes": nodes, "elements": elements, "fields": fields}
 
 
 # ─── Dam (hydraulic / load control) ──────────────────────────────────────────
@@ -352,6 +362,10 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
     U = U0.copy()
     level_curr = ld.h_start
 
+    snapshots = [_field_snapshot(assembler, model, U, state, ld.h_start,
+                                 float(U[crest_dof_x]))]
+    snap_every = 5  # capture every 5 accepted steps; payload is downsampled
+
     for seg_target in targets:
         stepping = LevelStepping(
             h_start=level_curr,
@@ -364,7 +378,8 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
 
         seg = run_load_control(assembler, model, state, U, support_dofs,
                                build_fext, output_fn, stepping,
-                               cfg.solver_options(), progress=progress)
+                               cfg.solver_options(), progress=progress,
+                               snapshots=snapshots, snapshot_every=snap_every)
 
         all_control.extend(seg.control.tolist())
         all_load.extend(seg.load.tolist())
@@ -376,9 +391,13 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
         U = seg.U_final.copy()
         level_curr = float(seg.control[-1]) if seg.control.size else level_curr
 
+    if all_load:
+        snapshots.append(_field_snapshot(assembler, model, U, state,
+                                         all_control[-1], all_load[-1]))
+
     result = AnalysisResult(
         np.array(all_control), np.array(all_load), np.array(all_dmax),
-        U, state, total_accepted, total_rejected, all_table)
+        U, state, total_accepted, total_rejected, all_table, snapshots)
 
     out = Path(out_dir or cfg.output.dir) / cfg.name
     summary = pp.save_summary(out, cfg, result,
@@ -392,8 +411,9 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
     if cfg.output.save_figures:
         pp.save_figures(out, nodes, elements, result, assembler, model,
                         dpi=cfg.output.dpi, control_label="H [m]", load_label="ux crest")
+    fields = pp.save_fields(out, nodes, elements, result, assembler, model)
     return {"result": result, "summary": summary, "out_dir": str(out),
-            "nodes": nodes, "elements": elements}
+            "nodes": nodes, "elements": elements, "fields": fields}
 
 
 # ─── Time-history (distributed edge loads scaled by lambda(t)) ────────────────
@@ -478,12 +498,21 @@ def _run_time_history(cfg: Config, out_dir, progress) -> dict:
     state0 = GPState.zeros(elements.shape[0], elem.n_gp)
     U0 = np.zeros(n_dof)
 
+    snapshots = [_field_snapshot(assembler, model, U0, state0, ld.t_start, 0.0)]
+    snap_every = 5  # capture every 5 accepted steps; payload is downsampled
+
     seg = run_load_control(assembler, model, state0, U0, support_dofs,
                            build_fext, output_fn, stepping,
-                           cfg.solver_options(), progress=progress)
+                           cfg.solver_options(), progress=progress,
+                           snapshots=snapshots, snapshot_every=snap_every)
+
+    if seg.load.size:
+        snapshots.append(_field_snapshot(assembler, model, seg.U_final, seg.state,
+                                         float(seg.control[-1]), float(seg.load[-1])))
 
     result = AnalysisResult(seg.control, seg.load, seg.max_damage, seg.U_final,
-                            seg.state, seg.accepted, seg.rejected, seg.step_table)
+                            seg.state, seg.accepted, seg.rejected, seg.step_table,
+                            snapshots)
 
     out = Path(out_dir or cfg.output.dir) / cfg.name
     summary = pp.save_summary(out, cfg, result,
@@ -495,5 +524,6 @@ def _run_time_history(cfg: Config, out_dir, progress) -> dict:
     if cfg.output.save_figures:
         pp.save_figures(out, nodes, elements, result, assembler, model,
                         dpi=cfg.output.dpi, control_label="t", load_label="max|u| [mm]")
+    fields = pp.save_fields(out, nodes, elements, result, assembler, model)
     return {"result": result, "summary": summary, "out_dir": str(out),
-            "nodes": nodes, "elements": elements}
+            "nodes": nodes, "elements": elements, "fields": fields}

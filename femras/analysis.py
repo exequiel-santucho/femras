@@ -47,6 +47,26 @@ class AnalysisResult:
     accepted: int
     rejected: int
     step_table: list = field(default_factory=list)
+    # Field snapshots captured during stepping (for deformed shape / heatmaps
+    # at different control levels). Each item:
+    #   {"control", "load", "dmax", "U", "stress" (n_elem,3), "damage" (n_elem,)}
+    snapshots: list = field(default_factory=list)
+
+
+def _field_snapshot(assembler, model, U, state, control, load):
+    """Per-element stress + damage at the current converged state (non-mutating)."""
+    elem_stress = np.zeros((0, 3))
+    if state.damage_t.size:
+        strain = assembler.strains(U)
+        sigma, _d, _s = model.evaluate(strain, state)
+        elem_stress = sigma.mean(axis=1)
+        d = 1.0 - (1.0 - state.damage_t) * (1.0 - state.damage_c)
+        elem_damage = d.max(axis=1)
+    else:
+        elem_damage = np.zeros(0)
+    return {"control": float(control), "load": float(load),
+            "dmax": float(elem_damage.max()) if elem_damage.size else 0.0,
+            "U": U.copy(), "stress": elem_stress, "damage": elem_damage}
 
 
 def _toward(current, step, target):
@@ -60,7 +80,8 @@ def run_displacement_control(assembler: Assembler, model: ConstitutiveModel,
                              state0: GPState, U0: np.ndarray,
                              support_dofs: dict, load_dofs: list,
                              load_base: float, stepping: SteppingOptions,
-                             solver_opts: SolverOptions, progress=None) -> AnalysisResult:
+                             solver_opts: SolverOptions, progress=None,
+                             snapshots=None, snapshot_every=0) -> AnalysisResult:
     state = state0.copy()
     U_current = U0.copy()
     U_final = U0.copy()
@@ -108,6 +129,8 @@ def run_displacement_control(assembler: Assembler, model: ConstitutiveModel,
         dmax_hist.append(dmax)
         table.append(dict(step=accepted, attempt=rejected, control=delta, load=P,
                           dmax=dmax, iters=res.iters, norm_R=res.norm_R, conv=True))
+        if snapshots is not None and snapshot_every > 0 and accepted % snapshot_every == 0:
+            snapshots.append(_field_snapshot(assembler, model, U_current, state, delta, P))
         if progress:
             progress(accepted, delta, P, dmax)
 
@@ -143,7 +166,8 @@ class LevelStepping:
 def run_load_control(assembler: Assembler, model: ConstitutiveModel,
                      state0: GPState, U0: np.ndarray, support_dofs: dict,
                      build_fext, output_fn, stepping: LevelStepping,
-                     solver_opts: SolverOptions, progress=None) -> AnalysisResult:
+                     solver_opts: SolverOptions, progress=None,
+                     snapshots=None, snapshot_every=0) -> AnalysisResult:
     """Increment an external load parameter (e.g. water level) until failure or target.
 
     ``build_fext(level)`` returns the external force vector at a given control
@@ -196,6 +220,8 @@ def run_load_control(assembler: Assembler, model: ConstitutiveModel,
         dmax_hist.append(dmax)
         table.append(dict(step=accepted, attempt=rejected, control=level, load=out,
                           dmax=dmax, iters=res.iters, norm_R=res.norm_R, conv=True))
+        if snapshots is not None and snapshot_every > 0 and accepted % snapshot_every == 0:
+            snapshots.append(_field_snapshot(assembler, model, U_current, state, level, out))
         if progress:
             progress(accepted, level, out, dmax)
 
