@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "ORSEP / FEM-RAS contributors" },
+    { name = "FEM-RAS contributors" },
 ]
 keywords = ["FEM", "concrete", "ASR", "RAS", "alkali-silica", "damage", "civil-engineering"]
 dependencies = [
