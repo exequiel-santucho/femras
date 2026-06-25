@@ -88,6 +88,59 @@ class SupportCfg(BaseModel):
     fix_y: bool = True
 
 
+class EdgeSupportCfg(BaseModel):
+    """Displacement BC applied to every mesh node on the segment [p1, p2].
+
+    Semantic equivalences:
+        fix_x=True,  fix_y=True  -> fixed (empotrado)
+        fix_x=False, fix_y=True  -> roller free in X (roller_x)
+        fix_x=True,  fix_y=False -> roller free in Y (roller_y)
+    """
+    vertices: List[List[float]]   # [[x1, y1], [x2, y2]]
+    fix_x: bool = True
+    fix_y: bool = True
+
+
+class TimeFunctionCfg(BaseModel):
+    """Time multiplier lambda(t) for an edge load.
+
+    Either a piecewise-linear table of [t, value] points or an expression
+    string (e.g. "10*sin(2*pi*t)"). ``expr`` takes precedence over ``points``;
+    if both are empty the multiplier is the constant 1.0.
+    """
+    points: List[List[float]] = Field(default_factory=list)   # [[t, value], ...]
+    expr: Optional[str] = None
+
+    def multiplier(self):
+        from .timefunc import make_time_multiplier
+        return make_time_multiplier(points=self.points or None, expr=self.expr)
+
+
+class EdgeLoadCfg(BaseModel):
+    """Distributed traction on the polygon edge [p1, p2], scaled by ``multiplier``.
+
+    ``p_normal`` acts along the inward face normal (positive pushes into the
+    body); ``p_tangential`` acts along the edge tangent (p1 -> p2). Both are
+    reference magnitudes (force per unit area) multiplied by lambda(t).
+    """
+    vertices: List[List[float]]   # [[x1, y1], [x2, y2]]
+    p_normal: float = 0.0
+    p_tangential: float = 0.0
+    multiplier: TimeFunctionCfg = Field(default_factory=TimeFunctionCfg)
+
+
+class NodalLoadCfg(BaseModel):
+    """Concentrated force applied at the mesh node nearest to (x, y).
+
+    ``fx``/``fy`` are reference components (global axes) scaled by lambda(t).
+    """
+    x: float
+    y: float
+    fx: float = 0.0
+    fy: float = 0.0
+    multiplier: TimeFunctionCfg = Field(default_factory=TimeFunctionCfg)
+
+
 class DisplacementLoad(BaseModel):
     mode: Literal["displacement"] = "displacement"
     # imposed on a top patch near x_center at y_top, vertical DOF
@@ -122,6 +175,27 @@ class HydraulicLoad(BaseModel):
     # Ordered sequence of water-level targets for multi-segment loading.
     # If empty, falls back to [h_target].
     history: List[float] = Field(default_factory=list)
+
+
+class TimeHistoryLoad(BaseModel):
+    """Pseudo-time march applying time-variable distributed edge loads.
+
+    The control parameter is the pseudo-time ``t`` advancing from ``t_start`` to
+    ``t_end`` with adaptive stepping. At each step the external force is the
+    (optional) self-weight plus, for every edge load, its reference traction
+    scaled by its time multiplier lambda(t).
+    """
+    mode: Literal["time_history"] = "time_history"
+    t_start: float = 0.0
+    t_end: float = 1.0
+    dt_initial: float = 0.05
+    dt_min: float = 0.001
+    dt_max: float = 0.10
+    max_accepted_steps: int = 600
+    self_weight: bool = False
+    gamma_c: float = 2.40e-5
+    edge_loads: List[EdgeLoadCfg] = Field(default_factory=list)
+    point_loads: List[NodalLoadCfg] = Field(default_factory=list)
 
 
 class SolverCfg(BaseModel):
@@ -162,8 +236,10 @@ class Config(BaseModel):
     material: MaterialCfg = Field(default_factory=MaterialCfg)
     ras: RASCfg = Field(default_factory=RASCfg)
     geometry: BeamGeometry | PolygonGeometry = Field(default_factory=BeamGeometry, discriminator="kind")
-    supports: List[SupportCfg] = Field(default_factory=list)
-    loading: DisplacementLoad | HydraulicLoad = Field(default_factory=DisplacementLoad, discriminator="mode")
+    supports: List[SupportCfg] = Field(default_factory=list)        # nodos puntuales
+    edge_supports: List[EdgeSupportCfg] = Field(default_factory=list)  # aristas completas
+    loading: DisplacementLoad | HydraulicLoad | TimeHistoryLoad = Field(
+        default_factory=DisplacementLoad, discriminator="mode")
     solver: SolverCfg = Field(default_factory=SolverCfg)
     output: OutputCfg = Field(default_factory=OutputCfg)
     service: Optional[ServiceStageCfg] = None

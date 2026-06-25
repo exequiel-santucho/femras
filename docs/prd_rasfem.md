@@ -1,6 +1,6 @@
 # PRD — rasfem: Herramienta FEM 2D para Hormigón con RAS/ASR
 
-**Repositorio:** https://github.com/exequiel-santucho/rasfem  
+**Repositorio:** https://github.com/exequiel-santucho/femras  
 **Licencia:** MIT  
 **Versión del documento:** 2026-06-12  
 **Estado:** Desarrollo activo

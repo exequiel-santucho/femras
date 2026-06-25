@@ -16,11 +16,13 @@
 
 // ─── Tools ──────────────────────────────────────────────────────────────────
 const TOOL = {
-  VERTEX:  "vertex",
-  SUPPORT: "support",
-  LOAD:    "load",
-  EDGE:    "edge",
-  DELETE:  "delete",
+  VERTEX:   "vertex",
+  SUPPORT:  "support",
+  LOAD:     "load",
+  EDGE:     "edge",
+  ESUPPORT: "esupport",   // support on a whole edge
+  ELOAD:    "eload",      // distributed time-variable load on a whole edge
+  DELETE:   "delete",
 };
 
 // ─── Colours ─────────────────────────────────────────────────────────────────
@@ -49,10 +51,15 @@ const poly = {
   supports:      [],      // [{vIdx, type}]
   loads:         [],      // [{vIdx, fx, fy}]
   hydraulicFace: null,    // {v1Idx, v2Idx} or null
+  edgeSupports:  [],      // [{e0, type}]  e0 = start vertex idx of edge
+  edgeLoads:     [],      // [{e0, pNormal, pTangential, fnType, expr, pointsText}]
   meshSize:      2000.0,
   thickness:     1000.0,
   problemType:   "plane_strain",
   loadHistory:   [],      // [target, target, …] ordered list of control targets
+  tStart:        0.0,     // time_history pseudo-time range
+  tEnd:          1.0,
+  dt:            0.05,
 };
 
 const beam = {
@@ -66,8 +73,18 @@ let svgEl     = null;
 let worldG    = null;
 let hoverIdx  = -1;
 let selIdx    = -1;
+let selEdge   = -1;  // selected edge (start-vertex idx) for the inspector
 let hoverEdge = -1;  // index into verts[] of the start vertex of hovered edge
 let dragState = null;
+
+// Tools that operate on whole edges (drive edge hover + edge picking).
+const EDGE_TOOLS = new Set([TOOL.EDGE, TOOL.ESUPPORT, TOOL.ELOAD]);
+
+function _supportFlags(type) {
+  if (type === "roller_x") return { fix_x: false, fix_y: true };   // free in X
+  if (type === "roller_y") return { fix_x: true,  fix_y: false };  // free in Y
+  return { fix_x: true, fix_y: true };                             // fixed
+}
 
 // ─── i18n helper ─────────────────────────────────────────────────────────────
 // _ct() is defined in app.js; it returns I18N[lang].canvas[key]
@@ -91,6 +108,9 @@ function initEditor() {
   // Polygon parameter inputs
   _bindInput("ed-meshsize",  v => { poly.meshSize  = v || 2000; });
   _bindInput("ed-thickness", v => { poly.thickness = v || 1000; });
+  _bindInput("ed-tstart",    v => { poly.tStart = isNaN(v) ? 0 : v; });
+  _bindInput("ed-tend",      v => { poly.tEnd   = isNaN(v) ? 1 : v; });
+  _bindInput("ed-dt",        v => { poly.dt     = v || 0.05; });
   const ptEl = document.getElementById("ed-probtype");
   if (ptEl) ptEl.addEventListener("change", () => { poly.problemType = ptEl.value; });
 
@@ -149,10 +169,15 @@ function editorLoadTemplate(name) {
     poly.supports      = [{vIdx:0, type:"fixed"}, {vIdx:1, type:"fixed"}];
     poly.loads         = [];
     poly.hydraulicFace = {v1Idx:4, v2Idx:0};  // left face: V4→V0 (x=0, upstream)
+    poly.edgeSupports  = [];
+    poly.edgeLoads     = [];
     poly.meshSize      = 2000;
     poly.thickness     = 1000;
     poly.problemType   = "plane_strain";
     poly.loadHistory   = [];
+    poly.tStart        = 0.0;
+    poly.tEnd          = 1.0;
+    poly.dt            = 0.05;
     _showMode("poly");
     _syncPolyForm();
     _fitView();
@@ -168,9 +193,14 @@ function _showMode(mode) {
   const bf = document.getElementById("beam-form");
   if (pf) pf.style.display = mode === "poly" ? "" : "none";
   if (bf) bf.style.display = mode === "beam" ? "" : "none";
-  // Edge tool only makes sense in poly mode
-  const edgeBtn = document.querySelector('[data-tool="edge"]');
-  if (edgeBtn) edgeBtn.style.display = mode === "poly" ? "" : "none";
+  // Edge tools (hydraulic face, edge support, edge load) only make sense in poly mode
+  ["edge", "esupport", "eload"].forEach(t => {
+    const b = document.querySelector(`[data-tool="${t}"]`);
+    if (b) b.style.display = mode === "poly" ? "" : "none";
+  });
+  // Time-history range fields only relevant in poly mode
+  const tr = document.getElementById("ed-time-range");
+  if (tr) tr.style.display = mode === "poly" ? "" : "none";
 }
 
 function _syncPolyForm() {
@@ -180,6 +210,12 @@ function _syncPolyForm() {
   if (msEl)  msEl.value  = poly.meshSize;
   if (thEl)  thEl.value  = poly.thickness;
   if (ptEl)  ptEl.value  = poly.problemType;
+  const ts = document.getElementById("ed-tstart");
+  const te = document.getElementById("ed-tend");
+  const dt = document.getElementById("ed-dt");
+  if (ts) ts.value = poly.tStart;
+  if (te) te.value = poly.tEnd;
+  if (dt) dt.value = poly.dt;
 }
 
 function _syncBeamForm() {
@@ -211,6 +247,8 @@ function _render() {
   _drawPolygon();
   _drawHydraulicFace();
   _drawEdgeHover();
+  _drawEdgeSupports();
+  _drawEdgeLoads();
   _drawSupports();
   _drawLoads();
   _drawVertices();
@@ -278,15 +316,114 @@ function _drawHydraulicFace() {
 }
 
 function _drawEdgeHover() {
-  if (activeTool !== TOOL.EDGE || hoverEdge < 0 || !poly.closed) return;
+  if (!EDGE_TOOLS.has(activeTool) || hoverEdge < 0 || !poly.closed) return;
   const n = poly.verts.length;
   const v1 = poly.verts[hoverEdge];
   const v2 = poly.verts[(hoverEdge + 1) % n];
+  const col = activeTool === TOOL.ELOAD ? C.LOAD_COL
+            : activeTool === TOOL.ESUPPORT ? C.SUPPORT_COL : C.VERT_HOVER;
   worldG.appendChild(_mkEl("line", {
     x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y,
-    stroke: C.VERT_HOVER, "stroke-width": poly.meshSize * 1.5,
-    "stroke-linecap": "round", opacity: 0.6,
+    stroke: col, "stroke-width": poly.meshSize * 1.5,
+    "stroke-linecap": "round", opacity: 0.55,
   }));
+}
+
+// Unit inward normal of edge e0 (toward the polygon centroid).
+function _edgeInwardNormal(e0) {
+  const n = poly.verts.length;
+  const v1 = poly.verts[e0], v2 = poly.verts[(e0 + 1) % n];
+  const tx = v2.x - v1.x, ty = v2.y - v1.y;
+  const L = Math.hypot(tx, ty) || 1;
+  let nx = -ty / L, ny = tx / L;
+  const cx = poly.verts.reduce((s, v) => s + v.x, 0) / n;
+  const cy = poly.verts.reduce((s, v) => s + v.y, 0) / n;
+  const mx = (v1.x + v2.x) / 2, my = (v1.y + v2.y) / 2;
+  if (nx * (cx - mx) + ny * (cy - my) < 0) { nx = -nx; ny = -ny; }
+  return { nx, ny, tx: tx / L, ty: ty / L, L };
+}
+
+function _drawEdgeSupports() {
+  if (!poly.closed) return;
+  const n = poly.verts.length;
+  const sz = poly.meshSize * 2.4;
+  poly.edgeSupports.forEach(es => {
+    if (es.e0 < 0 || es.e0 >= n) return;
+    const v1 = poly.verts[es.e0], v2 = poly.verts[(es.e0 + 1) % n];
+    const { nx, ny, L } = _edgeInwardNormal(es.e0);
+    // outward direction for the symbols (opposite of inward normal)
+    const ox = -nx, oy = -ny;
+    const count = Math.max(2, Math.min(12, Math.round(L / (poly.meshSize * 5))));
+    const sel = es.e0 === selEdge;
+    const g = _mkEl("g", { opacity: sel ? 1 : 0.9 });
+    // highlight the edge itself
+    g.appendChild(_mkEl("line", {
+      x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y,
+      stroke: C.SUPPORT_COL, "stroke-width": poly.meshSize * 0.5, opacity: 0.5,
+    }));
+    for (let k = 0; k <= count; k++) {
+      const f = k / count;
+      const px = v1.x + (v2.x - v1.x) * f;
+      const py = v1.y + (v2.y - v1.y) * f;
+      _drawSupportSymbol(g, px, py, ox, oy, es.type, sz);
+    }
+    worldG.appendChild(g);
+  });
+}
+
+// Draw a support glyph at (px,py) opening toward (ox,oy) (outward unit vector).
+function _drawSupportSymbol(g, px, py, ox, oy, type, sz) {
+  // perpendicular (along edge) unit
+  const ex = -oy, ey = ox;
+  const apex = { x: px, y: py };
+  const b1 = { x: px + ox * sz * 1.55 + ex * sz, y: py + oy * sz * 1.55 + ey * sz };
+  const b2 = { x: px + ox * sz * 1.55 - ex * sz, y: py + oy * sz * 1.55 - ey * sz };
+  const filled = type === "fixed";
+  g.appendChild(_mkEl("polygon", {
+    points: `${apex.x},${apex.y} ${b1.x},${b1.y} ${b2.x},${b2.y}`,
+    fill: filled ? C.SUPPORT_COL : "none",
+    stroke: C.SUPPORT_COL, "stroke-width": sz * 0.18,
+  }));
+  if (!filled) {
+    // roller circles just beyond the base
+    const cx = px + ox * sz * 2.0, cy = py + oy * sz * 2.0;
+    g.appendChild(_mkEl("circle", { cx, cy, r: sz * 0.25, fill: C.SUPPORT_COL }));
+  }
+}
+
+function _drawEdgeLoads() {
+  if (!poly.closed) return;
+  const n = poly.verts.length;
+  const arrowLen = poly.meshSize * 5;
+  poly.edgeLoads.forEach(el => {
+    if (el.e0 < 0 || el.e0 >= n) return;
+    const v1 = poly.verts[el.e0], v2 = poly.verts[(el.e0 + 1) % n];
+    const { nx, ny, tx, ty, L } = _edgeInwardNormal(el.e0);
+    const sel = el.e0 === selEdge;
+    const g = _mkEl("g", { opacity: sel ? 1 : 0.85 });
+    g.appendChild(_mkEl("line", {
+      x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y,
+      stroke: C.LOAD_COL, "stroke-width": poly.meshSize * 0.5, opacity: 0.5,
+    }));
+    // arrow direction: combine normal (sign of pNormal, inward +) and tangential
+    const sNorm = el.pNormal || 0, sTan = el.pTangential || 0;
+    let dx = nx * sNorm + tx * sTan, dy = ny * sNorm + ty * sTan;
+    const mag = Math.hypot(dx, dy);
+    if (mag < 1e-12) { dx = nx; dy = ny; } else { dx /= mag; dy /= mag; }
+    const count = Math.max(2, Math.min(10, Math.round(L / (poly.meshSize * 6))));
+    for (let k = 0; k <= count; k++) {
+      const f = k / count;
+      const px = v1.x + (v2.x - v1.x) * f;
+      const py = v1.y + (v2.y - v1.y) * f;
+      // tail starts outside, head lands on the edge (pointing inward when pNormal>0)
+      g.appendChild(_mkEl("line", {
+        x1: px - dx * arrowLen, y1: py - dy * arrowLen, x2: px, y2: py,
+        stroke: C.LOAD_COL, "stroke-width": poly.meshSize * 0.45,
+        "marker-end": "url(#ed-arrow)",
+      }));
+    }
+    worldG.appendChild(g);
+  });
 }
 
 function _drawVertices() {
@@ -372,6 +509,7 @@ function _onSvgClick(e) {
     if (poly.closed) return;
     poly.verts.push({x: m.x, y: m.y});
     selIdx = poly.verts.length - 1;
+    selEdge = -1;
     hoverEdge = -1;
     _fitView();
     _render();
@@ -383,7 +521,7 @@ function _onSvgClick(e) {
     if (vi < 0) return;
     poly.supports = poly.supports.filter(s => s.vIdx !== vi);
     poly.supports.push({vIdx: vi, type: activeSupportType});
-    selIdx = vi;
+    selIdx = vi; selEdge = -1;
     _render();
     _updateInspector();
 
@@ -391,8 +529,8 @@ function _onSvgClick(e) {
     const vi = _nearestVertIdx(m);
     if (vi < 0) return;
     poly.loads = poly.loads.filter(l => l.vIdx !== vi);
-    poly.loads.push({vIdx: vi, fx: 0, fy: -1});
-    selIdx = vi;
+    poly.loads.push(_defaultLoad(vi));
+    selIdx = vi; selEdge = -1;
     _render();
     _updateInspector();
 
@@ -409,13 +547,56 @@ function _onSvgClick(e) {
       poly.hydraulicFace = {v1Idx: ei, v2Idx: v2i};
     }
     hoverEdge = -1;
+    selEdge = -1;
+    _render();
+    _updateInspector();
+
+  } else if (activeTool === TOOL.ESUPPORT) {
+    if (!poly.closed || poly.verts.length < 2) return;
+    const ei = _nearestEdgeIdx(m);
+    if (ei < 0) return;
+    const existing = poly.edgeSupports.find(es => es.e0 === ei);
+    if (existing) {
+      // toggle off if same type, else replace type
+      if (existing.type === activeSupportType)
+        poly.edgeSupports = poly.edgeSupports.filter(es => es.e0 !== ei);
+      else
+        existing.type = activeSupportType;
+    } else {
+      poly.edgeSupports.push({ e0: ei, type: activeSupportType });
+    }
+    selEdge = ei; selIdx = -1; hoverEdge = -1;
+    _render();
+    _updateInspector();
+
+  } else if (activeTool === TOOL.ELOAD) {
+    if (!poly.closed || poly.verts.length < 2) return;
+    const ei = _nearestEdgeIdx(m);
+    if (ei < 0) return;
+    if (!poly.edgeLoads.find(el => el.e0 === ei)) {
+      poly.edgeLoads.push({
+        e0: ei, pNormal: 0.01, pTangential: 0.0,
+        fnType: "expr", expr: "t", pointsText: "0, 0\n1, 1",
+      });
+    }
+    selEdge = ei; selIdx = -1; hoverEdge = -1;
     _render();
     _updateInspector();
 
   } else if (activeTool === TOOL.DELETE) {
     const vi = _nearestVertIdx(m);
-    if (vi < 0) return;
-    _deleteVertex(vi);
+    if (vi >= 0) { _deleteVertex(vi); return; }
+    // delete an edge support/load if clicking an edge with one
+    if (poly.closed) {
+      const ei = _nearestEdgeIdx(m);
+      if (ei >= 0) {
+        poly.edgeSupports = poly.edgeSupports.filter(es => es.e0 !== ei);
+        poly.edgeLoads    = poly.edgeLoads.filter(el => el.e0 !== ei);
+        if (selEdge === ei) selEdge = -1;
+        _render();
+        _updateInspector();
+      }
+    }
   }
 }
 
@@ -452,7 +633,7 @@ function _onSvgMouseMove(e) {
     return;
   }
 
-  if (activeTool === TOOL.EDGE && poly.closed) {
+  if (EDGE_TOOLS.has(activeTool) && poly.closed) {
     const ei = _nearestEdgeIdx(m);
     if (ei !== hoverEdge) { hoverEdge = ei; _render(); }
     return;
@@ -481,6 +662,8 @@ function _onKeyDown(e) {
     "y": "support-roller_y", "Y": "support-roller_y",
     "l": "load", "L": "load",
     "e": "edge", "E": "edge",
+    "g": "esupport", "G": "esupport",
+    "b": "eload", "B": "eload",
     "d": "delete", "D": "delete",
   };
 
@@ -509,6 +692,7 @@ function _onKeyDown(e) {
   }
   if (e.key === "Escape") {
     selIdx = -1;
+    selEdge = -1;
     dragState = null;
     _render();
     _updateInspector();
@@ -519,6 +703,11 @@ function _onKeyDown(e) {
 function _updateInspector() {
   const el = document.getElementById("inspector-content");
   if (!el) return;
+
+  if (selEdge >= 0 && selEdge < poly.verts.length) {
+    _updateInspectorEdge(el);
+    return;
+  }
 
   if (selIdx < 0 || selIdx >= poly.verts.length) {
     el.innerHTML = `<p class="inspector-empty">${_ct("ins_none")}</p>`;
@@ -549,15 +738,67 @@ function _updateInspector() {
     html += `<div style="margin-top:6px;font-size:11px;color:var(--support-col)">
       ${_ct("ins_type")}: ${support.type}</div>`;
   }
+
+  // ── Nodal force load ──
+  html += `<div style="margin-top:8px;font-size:11px;font-weight:600;color:var(--load-col)">
+    ${_ct("ins_nload")}</div>`;
   if (load) {
-    html += `<div style="font-size:11px;color:var(--load-col)">
-      ${_ct("ins_type")}: load (fx=${load.fx}, fy=${load.fy})</div>`;
+    html += `<div class="field-row"><label>Fx</label>
+      <input type="number" step="any" value="${load.fx}"
+        onchange="updateNodalLoad(${selIdx},'fx',this.value)"></div>`;
+    html += `<div class="field-row"><label>Fy</label>
+      <input type="number" step="any" value="${load.fy}"
+        onchange="updateNodalLoad(${selIdx},'fy',this.value)"></div>`;
+    html += `<div class="field-row"><label>λ(t)</label>
+      <select onchange="updateNodalLoad(${selIdx},'fnType',this.value)">
+        <option value="expr"${load.fnType === "expr" ? " selected" : ""}>${_ct("ins_fn_expr")}</option>
+        <option value="points"${load.fnType === "points" ? " selected" : ""}>${_ct("ins_fn_points")}</option>
+      </select></div>`;
+    if (load.fnType === "points") {
+      html += `<textarea style="width:100%;height:70px;margin:2px 0;font-size:11px"
+        placeholder="t, valor (uno por línea)"
+        onchange="updateNodalLoad(${selIdx},'pointsText',this.value)">${load.pointsText || ""}</textarea>`;
+    } else {
+      html += `<input type="text" style="width:100%;margin:2px 0" value="${load.expr || ""}"
+        placeholder="10*sin(2*pi*t)"
+        onchange="updateNodalLoad(${selIdx},'expr',this.value)">`;
+    }
+    html += `<svg id="nload-preview" width="100%" height="50"
+      style="background:var(--bg);border-radius:5px;margin-top:4px"></svg>`;
+    html += `<button class="ghost sm" style="width:100%;margin:4px 0"
+      onclick="removeNodalLoad(${selIdx})">${_ct("ins_remove")}</button>`;
+  } else {
+    html += `<button class="ghost sm" style="width:100%;margin:4px 0"
+      onclick="addNodalLoad(${selIdx})">${_ct("ins_add_nload")}</button>`;
   }
+
   if (isFace) {
     html += `<div style="font-size:11px;color:var(--face-col)">${_ct("ins_face")}</div>`;
   }
 
   el.innerHTML = html;
+  if (load) _renderMultPreview("nload-preview", load);
+}
+
+function _defaultLoad(vIdx) {
+  return { vIdx, fx: 0, fy: -1, fnType: "expr", expr: "t", pointsText: "0, 0\n1, 1" };
+}
+function addNodalLoad(vIdx) {
+  if (!poly.loads.find(l => l.vIdx === vIdx)) poly.loads.push(_defaultLoad(vIdx));
+  _render(); _updateInspector();
+}
+function removeNodalLoad(vIdx) {
+  poly.loads = poly.loads.filter(l => l.vIdx !== vIdx);
+  _render(); _updateInspector();
+}
+function updateNodalLoad(vIdx, key, val) {
+  const l = poly.loads.find(x => x.vIdx === vIdx);
+  if (!l) return;
+  if (key === "fx" || key === "fy") l[key] = parseFloat(val) || 0;
+  else l[key] = val;
+  _render();
+  if (key === "fnType") _updateInspector();
+  else if (l.fnType === "points" || key === "expr") _renderMultPreview("nload-preview", l);
 }
 
 function updateVertCoord(idx, coord, val) {
@@ -565,6 +806,173 @@ function updateVertCoord(idx, coord, val) {
   poly.verts[idx][coord] = parseFloat(val) || 0;
   _fitView();
   _render();
+}
+
+// ─── Edge inspector (edge supports + edge loads) ──────────────────────────────
+function _updateInspectorEdge(el) {
+  const n = poly.verts.length;
+  const e0 = selEdge;
+  const v1 = poly.verts[e0], v2 = poly.verts[(e0 + 1) % n];
+  const len = Math.hypot(v2.x - v1.x, v2.y - v1.y);
+  const es = poly.edgeSupports.find(s => s.e0 === e0);
+  const elo = poly.edgeLoads.find(l => l.e0 === e0);
+
+  let html = `<div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px">
+    ${_ct("ins_edge")} V${e0}–V${(e0 + 1) % n}</div>`;
+  html += `<div style="font-size:11px;color:var(--muted);margin-bottom:6px">
+    ${_ct("ins_len")}: ${(len / 1000).toFixed(2)} m</div>`;
+
+  // ── Edge support ──
+  html += `<div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--support-col)">
+    ${_ct("ins_esupport")}</div>`;
+  if (es) {
+    html += `<div class="field-row">
+      <label>${_ct("ins_type")}</label>
+      <select onchange="updateEdgeSupportType(${e0}, this.value)">
+        <option value="fixed"${es.type === "fixed" ? " selected" : ""}>${_ct("tool_fixed")}</option>
+        <option value="roller_x"${es.type === "roller_x" ? " selected" : ""}>${_ct("tool_rollerx")}</option>
+        <option value="roller_y"${es.type === "roller_y" ? " selected" : ""}>${_ct("tool_rollery")}</option>
+      </select></div>
+      <button class="ghost sm" style="width:100%;margin:4px 0"
+        onclick="removeEdgeSupport(${e0})">${_ct("ins_remove")}</button>`;
+  } else {
+    html += `<button class="ghost sm" style="width:100%;margin:4px 0"
+      onclick="addEdgeSupport(${e0})">${_ct("ins_add_esupport")}</button>`;
+  }
+
+  // ── Edge load ──
+  html += `<div style="margin-top:8px;font-size:11px;font-weight:600;color:var(--load-col)">
+    ${_ct("ins_eload")}</div>`;
+  if (elo) {
+    html += `<div class="field-row"><label>${_ct("ins_pnormal")}</label>
+      <input type="number" step="any" value="${elo.pNormal}"
+        onchange="updateEdgeLoad(${e0},'pNormal',this.value)"></div>`;
+    html += `<div class="field-row"><label>${_ct("ins_ptang")}</label>
+      <input type="number" step="any" value="${elo.pTangential}"
+        onchange="updateEdgeLoad(${e0},'pTangential',this.value)"></div>`;
+    html += `<div class="field-row"><label>λ(t)</label>
+      <select onchange="updateEdgeLoad(${e0},'fnType',this.value)">
+        <option value="expr"${elo.fnType === "expr" ? " selected" : ""}>${_ct("ins_fn_expr")}</option>
+        <option value="points"${elo.fnType === "points" ? " selected" : ""}>${_ct("ins_fn_points")}</option>
+      </select></div>`;
+    if (elo.fnType === "expr") {
+      html += `<input type="text" style="width:100%;margin:2px 0" value="${elo.expr || ""}"
+        placeholder="10*sin(2*pi*t)"
+        onchange="updateEdgeLoad(${e0},'expr',this.value)">`;
+    } else {
+      html += `<textarea style="width:100%;height:70px;margin:2px 0;font-size:11px"
+        placeholder="t, valor (uno por línea)"
+        onchange="updateEdgeLoad(${e0},'pointsText',this.value)">${elo.pointsText || ""}</textarea>`;
+    }
+    html += `<svg id="eload-preview" width="100%" height="50"
+      style="background:var(--bg);border-radius:5px;margin-top:4px"></svg>`;
+    html += `<button class="ghost sm" style="width:100%;margin:4px 0"
+      onclick="removeEdgeLoad(${e0})">${_ct("ins_remove")}</button>`;
+  } else {
+    html += `<button class="ghost sm" style="width:100%;margin:4px 0"
+      onclick="addEdgeLoad(${e0})">${_ct("ins_add_eload")}</button>`;
+  }
+
+  el.innerHTML = html;
+  if (elo) _renderMultPreview("eload-preview", elo);
+}
+
+function addEdgeSupport(e0) {
+  if (!poly.edgeSupports.find(s => s.e0 === e0))
+    poly.edgeSupports.push({ e0, type: "fixed" });
+  _render(); _updateInspector();
+}
+function removeEdgeSupport(e0) {
+  poly.edgeSupports = poly.edgeSupports.filter(s => s.e0 !== e0);
+  _render(); _updateInspector();
+}
+function updateEdgeSupportType(e0, type) {
+  const es = poly.edgeSupports.find(s => s.e0 === e0);
+  if (es) es.type = type;
+  _render(); _updateInspector();
+}
+function addEdgeLoad(e0) {
+  if (!poly.edgeLoads.find(l => l.e0 === e0))
+    poly.edgeLoads.push({ e0, pNormal: 0.01, pTangential: 0.0,
+      fnType: "expr", expr: "t", pointsText: "0, 0\n1, 1" });
+  _render(); _updateInspector();
+}
+function removeEdgeLoad(e0) {
+  poly.edgeLoads = poly.edgeLoads.filter(l => l.e0 !== e0);
+  _render(); _updateInspector();
+}
+function updateEdgeLoad(e0, key, val) {
+  const elo = poly.edgeLoads.find(l => l.e0 === e0);
+  if (!elo) return;
+  if (key === "pNormal" || key === "pTangential") elo[key] = parseFloat(val) || 0;
+  else elo[key] = val;
+  _render();
+  if (key === "fnType") _updateInspector();   // swap expr/points control
+  else if (elo.fnType === "points" || key === "expr") _renderMultPreview("eload-preview", elo);
+}
+
+function _parsePoints(text) {
+  return (text || "").split(/\n+/).map(line => {
+    const m = line.trim().split(/[,\s]+/).map(Number);
+    return (m.length >= 2 && m.every(x => !isNaN(x))) ? [m[0], m[1]] : null;
+  }).filter(Boolean);
+}
+
+// Sample λ(t) over [tStart,tEnd] for a small preview curve.
+function _renderMultPreview(svgId, elo) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  const W = svg.clientWidth || 220, H = 50, pad = 6;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const t0 = poly.tStart, t1 = poly.tEnd > poly.tStart ? poly.tEnd : poly.tStart + 1;
+  const N = 60;
+  let fn;
+  if (elo.fnType === "points") {
+    const pts = _parsePoints(elo.pointsText).sort((a, b) => a[0] - b[0]);
+    fn = pts.length ? (t => {
+      if (t <= pts[0][0]) return pts[0][1];
+      if (t >= pts[pts.length - 1][0]) return pts[pts.length - 1][1];
+      for (let i = 1; i < pts.length; i++)
+        if (t <= pts[i][0]) {
+          const [ta, va] = pts[i - 1], [tb, vb] = pts[i];
+          return va + (vb - va) * (t - ta) / (tb - ta || 1);
+        }
+      return 0;
+    }) : (() => 0);
+  } else {
+    fn = _safeExprFn(elo.expr);
+  }
+  const xs = [], ys = [];
+  for (let i = 0; i <= N; i++) {
+    const t = t0 + (t1 - t0) * i / N;
+    let v = NaN; try { v = fn(t); } catch {}
+    xs.push(t); ys.push(isFinite(v) ? v : 0);
+  }
+  const ymin = Math.min(0, ...ys), ymax = Math.max(0, ...ys), yr = ymax - ymin || 1;
+  const toX = i => pad + (i / N) * (W - 2 * pad);
+  const toY = v => H - pad - ((v - ymin) / yr) * (H - 2 * pad);
+  const d = ys.map((v, i) => `${i ? "L" : "M"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(" ");
+  svg.innerHTML =
+    `<line x1="${pad}" y1="${toY(0).toFixed(1)}" x2="${W - pad}" y2="${toY(0).toFixed(1)}"
+       stroke="var(--border)" stroke-width="1"/>
+     <path d="${d}" fill="none" stroke="var(--load-col)" stroke-width="1.5"/>`;
+}
+
+// Very small safe evaluator for the live preview (backend re-validates on run).
+function _safeExprFn(expr) {
+  const allowed = ["sin","cos","tan","asin","acos","atan","atan2","sinh","cosh",
+    "tanh","exp","log","log10","sqrt","abs","min","max","pow","floor","ceil"];
+  const env = { pi: Math.PI, e: Math.E, tau: 2 * Math.PI };
+  allowed.forEach(k => { env[k] = Math[k] || (() => 0); });
+  env.log10 = x => Math.log10(x);
+  const names = (expr || "").match(/[a-zA-Z_]\w*/g) || [];
+  for (const nm of names)
+    if (nm !== "t" && !(nm in env)) return () => 0;   // unknown name → flat
+  try {
+    // eslint-disable-next-line no-new-func
+    const f = new Function("t", "env", `with(env){return (${expr || 0});}`);
+    return t => f(t, env);
+  } catch { return () => 0; }
 }
 
 // ─── Load schedule panel ─────────────────────────────────────────────────────
@@ -685,47 +1093,82 @@ function _polyConfig() {
   }
   const verts = poly.verts.map(v => [+v.x.toFixed(1), +v.y.toFixed(1)]);
   const ymax  = Math.max(...poly.verts.map(v => v.y));
-
-  const isHydraulic = poly.hydraulicFace !== null;
-
-  const loading = {
-    mode: isHydraulic ? "hydraulic" : "displacement",
+  const n     = poly.verts.length;
+  const edgeVerts = e0 => {
+    const a = poly.verts[e0], b = poly.verts[(e0 + 1) % n];
+    return [[+a.x.toFixed(1), +a.y.toFixed(1)], [+b.x.toFixed(1), +b.y.toFixed(1)]];
   };
 
-  if (isHydraulic) {
-    Object.assign(loading, {
+  const mult = o => o.fnType === "points"
+    ? { points: _parsePoints(o.pointsText) }
+    : { expr: o.expr || "1" };
+
+  // Loading mode priority: time_history (edge or nodal loads) > hydraulic > displacement.
+  const hasTimeLoads = poly.edgeLoads.length > 0 || poly.loads.length > 0;
+  const isHydraulic  = !hasTimeLoads && poly.hydraulicFace !== null;
+
+  let loading;
+  if (hasTimeLoads) {
+    loading = {
+      mode: "time_history",
+      t_start: poly.tStart, t_end: poly.tEnd,
+      dt_initial: poly.dt, dt_min: poly.dt * 0.05, dt_max: poly.dt * 2,
+      max_accepted_steps: 600,
+      self_weight: false, gamma_c: 2.40e-5,
+      edge_loads: poly.edgeLoads.map(el => ({
+        vertices: edgeVerts(el.e0),
+        p_normal: el.pNormal, p_tangential: el.pTangential,
+        multiplier: mult(el),
+      })),
+      point_loads: poly.loads
+        .filter(l => poly.verts[l.vIdx])
+        .map(l => ({
+          x: +poly.verts[l.vIdx].x.toFixed(1),
+          y: +poly.verts[l.vIdx].y.toFixed(1),
+          fx: l.fx, fy: l.fy, multiplier: mult(l),
+        })),
+    };
+  } else if (isHydraulic) {
+    loading = {
+      mode: "hydraulic",
       h_start: ymax * 0.80,
       h_target: ymax * 0.97,
       dh_initial: ymax * 0.004,
       dh_min: ymax * 0.0002,
       dh_max: ymax * 0.004,
       max_accepted_steps: 300,
-    });
-    if (poly.hydraulicFace) {
-      const {v1Idx, v2Idx} = poly.hydraulicFace;
-      const pf1 = poly.verts[v1Idx], pf2 = poly.verts[v2Idx];
-      loading.face_vertices = [
-        [+pf1.x.toFixed(1), +pf1.y.toFixed(1)],
-        [+pf2.x.toFixed(1), +pf2.y.toFixed(1)],
-      ];
-    }
+    };
+    const {v1Idx, v2Idx} = poly.hydraulicFace;
+    const pf1 = poly.verts[v1Idx], pf2 = poly.verts[v2Idx];
+    loading.face_vertices = [
+      [+pf1.x.toFixed(1), +pf1.y.toFixed(1)],
+      [+pf2.x.toFixed(1), +pf2.y.toFixed(1)],
+    ];
     if (poly.loadHistory.length) loading.history = [...poly.loadHistory];
   } else {
-    Object.assign(loading, {
+    loading = {
+      mode: "displacement",
       x_center: poly.verts.reduce((s,v) => s + v.x, 0) / poly.verts.length,
       y_top: ymax,
       patch: "three_nodes_centered",
       target: -0.20,
       step_initial: -0.001, step_min: -0.00001, step_max: -0.0015,
       grow_factor: 1.10, shrink_factor: 0.5, max_accepted_steps: 300,
-    });
+    };
     if (poly.loadHistory.length) loading.history = [...poly.loadHistory];
   }
 
-  const supportsInfo = poly.supports.map(s => ({
-    vIdx: s.vIdx, type: s.type,
-    coords: poly.verts[s.vIdx] ? [poly.verts[s.vIdx].x, poly.verts[s.vIdx].y] : null,
-  }));
+  // Vertex supports → real SupportCfg list (nearest-node); edge supports → edge_supports.
+  const supports = poly.supports
+    .filter(s => poly.verts[s.vIdx])
+    .map(s => ({
+      x: +poly.verts[s.vIdx].x.toFixed(1),
+      y: +poly.verts[s.vIdx].y.toFixed(1),
+      ..._supportFlags(s.type),
+    }));
+  const edge_supports = poly.edgeSupports
+    .filter(es => es.e0 >= 0 && es.e0 < n)
+    .map(es => ({ vertices: edgeVerts(es.e0), ..._supportFlags(es.type) }));
 
   const cfg = {
     name: "canvas_polygon",
@@ -749,6 +1192,8 @@ function _polyConfig() {
       mesh_size: poly.meshSize,
       height: ymax,
     },
+    supports,
+    edge_supports,
     loading,
     solver: {
       tangent_mode: "numerical_hybrid",
@@ -756,7 +1201,6 @@ function _polyConfig() {
       use_line_search: true, backend: "auto",
     },
     output: { save_figures: true, save_tables: true },
-    _canvas_supports: supportsInfo,
   };
   return JSON.stringify(cfg, null, 2);
 }
@@ -870,8 +1314,15 @@ function _deleteVertex(vi) {
       };
     }
   }
+  // Edge supports / loads: drop those touching the deleted vertex, remap the rest.
+  const remapEdge = arr => arr
+    .filter(it => it.e0 !== vi && (it.e0 + 1) % (poly.verts.length + 1) !== vi)
+    .map(it => ({ ...it, e0: it.e0 > vi ? it.e0 - 1 : it.e0 }));
+  poly.edgeSupports = remapEdge(poly.edgeSupports);
+  poly.edgeLoads    = remapEdge(poly.edgeLoads);
   if (poly.verts.length < 3) poly.closed = false;
   selIdx = -1;
+  selEdge = -1;
   _fitView();
   _render();
   _updateInspector();
@@ -895,11 +1346,13 @@ function _updateStatus(msg) {
 function _updateCursor() {
   if (!svgEl) return;
   const map = {
-    [TOOL.VERTEX]:  "crosshair",
-    [TOOL.SUPPORT]: "cell",
-    [TOOL.LOAD]:    "cell",
-    [TOOL.EDGE]:    "pointer",
-    [TOOL.DELETE]:  "no-drop",
+    [TOOL.VERTEX]:   "crosshair",
+    [TOOL.SUPPORT]:  "cell",
+    [TOOL.LOAD]:     "cell",
+    [TOOL.EDGE]:     "pointer",
+    [TOOL.ESUPPORT]: "pointer",
+    [TOOL.ELOAD]:    "pointer",
+    [TOOL.DELETE]:   "no-drop",
   };
   svgEl.style.cursor = map[activeTool] || "default";
 }

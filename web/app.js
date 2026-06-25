@@ -26,7 +26,13 @@ const I18N = {
       tool_rollery:  "Rod.Y",
       tool_load:     "Carga",
       tool_edge:     "Cara H.",
+      tool_esupport: "Apoyo ar.",
+      tool_eload:    "Carga ar.",
       tool_delete:   "Borrar",
+      lbl_timerange: "Tiempo (carga variable)",
+      lbl_tstart:    "t inicial",
+      lbl_tend:      "t final",
+      lbl_dt:        "Δt",
       // Templates / export
       sec_templates: "Plantillas",
       tpl_dam:       "Presa",
@@ -57,6 +63,17 @@ const I18N = {
       ins_len: "Long.",
       ins_type: "Tipo",
       ins_face: "(cara hidráulica)",
+      ins_esupport:     "Apoyo en arista",
+      ins_eload:        "Carga en arista",
+      ins_nload:        "Carga nodal (fuerza)",
+      ins_add_esupport: "+ Apoyo en esta arista",
+      ins_add_eload:    "+ Carga en esta arista",
+      ins_add_nload:    "+ Carga en este nodo",
+      ins_remove:       "Quitar",
+      ins_pnormal:      "p normal",
+      ins_ptang:        "p tang.",
+      ins_fn_expr:      "Función f(t)",
+      ins_fn_points:    "Puntos (t, valor)",
       btn_preview: "Ver malla",
       btn_export:  "Exportar a Texto",
       // Status
@@ -89,7 +106,13 @@ const I18N = {
       tool_rollery:  "Roll.Y",
       tool_load:     "Load",
       tool_edge:     "H.Face",
+      tool_esupport: "Edge sup.",
+      tool_eload:    "Edge load",
       tool_delete:   "Delete",
+      lbl_timerange: "Time (variable load)",
+      lbl_tstart:    "t start",
+      lbl_tend:      "t end",
+      lbl_dt:        "Δt",
       sec_templates: "Templates",
       tpl_dam:       "Dam",
       tpl_beam:      "Beam",
@@ -119,6 +142,17 @@ const I18N = {
       ins_len: "Len.",
       ins_type: "Type",
       ins_face: "(hydraulic face)",
+      ins_esupport:     "Edge support",
+      ins_eload:        "Edge load",
+      ins_nload:        "Nodal load (force)",
+      ins_add_esupport: "+ Support on this edge",
+      ins_add_eload:    "+ Load on this edge",
+      ins_add_nload:    "+ Load on this node",
+      ins_remove:       "Remove",
+      ins_pnormal:      "p normal",
+      ins_ptang:        "p tang.",
+      ins_fn_expr:      "Function f(t)",
+      ins_fn_points:    "Points (t, value)",
       btn_preview: "Preview mesh",
       btn_export:  "Export to Text",
       st_template: "Template loaded. Edit vertices and generate the mesh.",
@@ -214,10 +248,14 @@ async function run() {
 }
 
 function plotCurve(curve, cfg) {
-  const isDam = cfg.loading && cfg.loading.mode === "hydraulic";
+  const mode = cfg.loading && cfg.loading.mode;
+  const isDam  = mode === "hydraulic";
+  const isTime = mode === "time_history";
+  const xLabel = isTime ? "t" : isDam ? "H" : "|δ|";
+  const yLabel = isTime ? "max|u|" : isDam ? "ux crest" : "P";
   const x = curve.control.map(Math.abs);
   Plotly.newPlot("curve", [
-    { x, y: curve.load, mode: "lines+markers", name: isDam ? "ux crest" : "P",
+    { x, y: curve.load, mode: "lines+markers", name: yLabel,
       line: { color: "#60a5fa" } },
     { x, y: curve.dmax, mode: "lines", name: "dmax", yaxis: "y2",
       line: { color: "#f87171", dash: "dot" } },
@@ -225,8 +263,8 @@ function plotCurve(curve, cfg) {
     margin: { t: 10, r: 50, b: 40, l: 55 },
     paper_bgcolor: "#132135", plot_bgcolor: "#0d1929",
     font: { color: "#dce8f5", size: 11 },
-    xaxis: { title: isDam ? "H" : "|δ|", gridcolor: "#233b5c" },
-    yaxis: { title: isDam ? "ux crest" : "P", gridcolor: "#233b5c" },
+    xaxis: { title: xLabel, gridcolor: "#233b5c" },
+    yaxis: { title: yLabel, gridcolor: "#233b5c" },
     yaxis2: { title: "dmax", overlaying: "y", side: "right", range: [0, 1] },
     legend: { orientation: "h", y: -0.2 },
   }, { displaylogo: false, responsive: true });

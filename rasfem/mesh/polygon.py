@@ -138,5 +138,18 @@ def face_boundary_edges(nodes, elements, p1, p2, tol=None):
     return sorted(edges, key=lambda ij: min(nodes[ij[0], 1], nodes[ij[1], 1]))
 
 
+def nodes_on_segment(nodes, elements, p1, p2, tol=None):
+    """Unique mesh-node indices lying on the boundary segment [p1, p2].
+
+    Built on :func:`face_boundary_edges`, so it shares the same relative
+    tolerance and only returns nodes on *free* boundary edges of the segment.
+    Used to apply an :class:`~rasfem.config.EdgeSupportCfg` to a whole edge.
+    """
+    edges = face_boundary_edges(nodes, elements, p1, p2, tol)
+    if not edges:
+        return np.array([], dtype=int)
+    return np.unique(np.array(edges, dtype=int).ravel())
+
+
 def base_nodes(nodes, y_base=0.0, tol=1e-7):
     return np.where(np.abs(nodes[:, 1] - y_base) < tol)[0]

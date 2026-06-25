@@ -1,9 +1,26 @@
 # PRD — Apoyos sobre aristas completas del polígono
 
 **Proyecto:** rasfem — herramienta FEM 2D para hormigón con RAS/ASR  
-**Repositorio:** https://github.com/exequiel-santucho/rasfem  
+**Repositorio:** https://github.com/exequiel-santucho/femras  
 **Fecha:** 2026-06-12  
-**Estado:** Pendiente de implementación
+**Estado:** ✅ Implementado (2026-06-25)
+
+> **Nota de implementación (2026-06-25).** Este PRD se implementó completo y,
+> además, se extendió el alcance con **cargas variables en el tiempo**:
+> - `config.EdgeSupportCfg` + `Config.edge_supports`, y `mesh.polygon.nodes_on_segment`
+>   tal como se especifica abajo.
+> - La resolución de apoyos para polígonos se centralizó en
+>   `run._resolve_polygon_support_dofs` (aristas → si vacío, fallback `base_nodes`;
+>   luego apoyos puntuales `Config.supports`), usada por `_run_dam` y por el nuevo
+>   driver `_run_time_history`.
+> - **Más allá del PRD original:** `EdgeLoadCfg` (tracción distribuida normal+tangencial),
+>   `NodalLoadCfg` (fuerza puntual por nodo más cercano), `TimeFunctionCfg` (multiplicador
+>   λ(t) por tabla `[t,valor]` o expresión segura tipo `10*sin(2*pi*t)`) y el modo de
+>   carga `TimeHistoryLoad` (`mode: time_history`). Ver el manual de usuario § 7.4b y § 7.5.
+> - El canvas web ganó las herramientas **Apoyo en arista (G)** y **Carga en arista (B)**,
+>   el editor de carga nodal con λ(t), y exporta `supports`, `edge_supports` y
+>   `time_history` (antes la herramienta de carga era solo visual).
+> - Cobertura: `tests/test_edge_loads.py` (10 tests); suite total **22 tests** en verde.
 
 ---
 

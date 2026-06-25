@@ -26,7 +26,47 @@ def run_config(cfg: Config, out_dir: str | Path | None = None, progress=None) ->
         return _run_beam(cfg, out_dir, progress)
     if cfg.loading.mode == "hydraulic":
         return _run_dam(cfg, out_dir, progress)
+    if cfg.loading.mode == "time_history":
+        return _run_time_history(cfg, out_dir, progress)
     raise NotImplementedError(f"loading mode '{cfg.loading.mode}' not supported")
+
+
+def _resolve_polygon_support_dofs(cfg: Config, nodes, elements) -> dict:
+    """Displacement BCs for a polygon mesh from config (PRD edge_supports).
+
+    * If ``cfg.edge_supports`` is non-empty, every mesh node on each edge gets
+      its selected DOFs fixed.
+    * Otherwise fall back to the legacy behaviour: all base nodes (y = 0) fixed,
+      preserving the existing dam regression results.
+    * Point ``cfg.supports`` (nearest node) are applied last and may override
+      individual DOFs.
+    """
+    from .mesh.polygon import nodes_on_segment, base_nodes, nearest_node
+
+    support_dofs: dict = {}
+    if cfg.edge_supports:
+        for es in cfg.edge_supports:
+            p1 = np.asarray(es.vertices[0], float)
+            p2 = np.asarray(es.vertices[1], float)
+            for n in nodes_on_segment(nodes, elements, p1, p2):
+                n = int(n)
+                if es.fix_x:
+                    support_dofs[2 * n] = 0.0
+                if es.fix_y:
+                    support_dofs[2 * n + 1] = 0.0
+    else:
+        for n in base_nodes(nodes, y_base=0.0):
+            n = int(n)
+            support_dofs[2 * n] = 0.0
+            support_dofs[2 * n + 1] = 0.0
+
+    for s in cfg.supports:
+        n = nearest_node(nodes, [s.x, s.y])
+        if s.fix_x:
+            support_dofs[2 * n] = 0.0
+        if s.fix_y:
+            support_dofs[2 * n + 1] = 0.0
+    return support_dofs
 
 
 # ─── Beam (displacement control) ─────────────────────────────────────────────
@@ -239,7 +279,7 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
     from . import postprocess as pp
     from .loads import assemble_external_force
     from .mesh.polygon import (conforming_t3_mesh, nearest_node,
-                               vertical_face_edges, face_boundary_edges, base_nodes)
+                               vertical_face_edges, face_boundary_edges)
     from .solver import solve_step_newton
 
     geo = cfg.geometry
@@ -265,11 +305,7 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
         up_edges = vertical_face_edges(nodes, elements, x_face=0.0)
         face_normal = np.array([1.0, 0.0])
 
-    base = base_nodes(nodes, y_base=0.0)
-    support_dofs = {}
-    for n in base:
-        support_dofs[2 * n] = 0.0
-        support_dofs[2 * n + 1] = 0.0
+    support_dofs = _resolve_polygon_support_dofs(cfg, nodes, elements)
 
     crest = nearest_node(nodes, [0.0, geo.height])
     crest_dof_x = 2 * crest
@@ -356,5 +392,108 @@ def _run_dam(cfg: Config, out_dir, progress) -> dict:
     if cfg.output.save_figures:
         pp.save_figures(out, nodes, elements, result, assembler, model,
                         dpi=cfg.output.dpi, control_label="H [m]", load_label="ux crest")
+    return {"result": result, "summary": summary, "out_dir": str(out),
+            "nodes": nodes, "elements": elements}
+
+
+# ─── Time-history (distributed edge loads scaled by lambda(t)) ────────────────
+
+def _run_time_history(cfg: Config, out_dir, progress) -> dict:
+    from . import postprocess as pp
+    from .analysis import LevelStepping, AnalysisResult, run_load_control
+    from .loads import body_force_t3, edge_traction_force
+    from .mesh.polygon import conforming_t3_mesh, face_boundary_edges, nearest_node
+
+    geo = cfg.geometry
+    if geo.kind != "polygon":
+        raise ValueError("time_history loading expects a polygon geometry")
+
+    material = cfg.material_model()
+    ras = cfg.ras_model()
+    pt = cfg.problem.problem_type
+    ld = cfg.loading
+
+    nodes, elements = conforming_t3_mesh(np.asarray(geo.vertices, float), geo.mesh_size)
+    elem = precompute(nodes, elements, "t3", cfg.problem.thickness)
+    assembler = Assembler(elem)
+
+    support_dofs = _resolve_polygon_support_dofs(cfg, nodes, elements)
+
+    # Precompute, per edge load: its boundary edges, inward normal and lambda(t).
+    th = cfg.problem.thickness
+    edge_data = []
+    for el in ld.edge_loads:
+        p1 = np.asarray(el.vertices[0], float)
+        p2 = np.asarray(el.vertices[1], float)
+        edges = face_boundary_edges(nodes, elements, p1, p2)
+        fn = _face_inward_normal(p1, p2, geo.vertices)
+        edge_data.append((edges, fn, el.p_normal, el.p_tangential,
+                          el.multiplier.multiplier()))
+
+    # Precompute, per nodal point load: its nearest node DOFs and lambda(t).
+    point_data = []
+    for pl in ld.point_loads:
+        node = nearest_node(nodes, [pl.x, pl.y])
+        point_data.append((2 * node, 2 * node + 1, pl.fx, pl.fy,
+                           pl.multiplier.multiplier()))
+
+    xi = ras.xi_at()
+    model = make_constitutive(material, ras, xi, elem.h_e, pt,
+                              strain_shear_factor=cfg.problem.strain_shear_factor,
+                              min_stiff_factor=cfg.solver.min_stiff_factor)
+
+    n_dof = 2 * nodes.shape[0]
+
+    # Self-weight is constant; precompute it once.
+    F_self = np.zeros(n_dof)
+    if ld.self_weight:
+        for e in range(elem.dofs.shape[0]):
+            F_self[elem.dofs[e]] += body_force_t3(elem.area[e], th, ld.gamma_c)
+
+    def build_fext(t):
+        F = F_self.copy()
+        for edges, fn, pn, ptg, lam in edge_data:
+            scale = lam(t)
+            if scale == 0.0:
+                continue
+            for i, j in edges:
+                fe = edge_traction_force(nodes[i], nodes[j], pn * scale,
+                                         ptg * scale, th, fn)
+                dofs = np.array([2 * i, 2 * i + 1, 2 * j, 2 * j + 1], dtype=int)
+                F[dofs] += fe
+        for dx, dy, fx, fy, lam in point_data:
+            scale = lam(t)
+            F[dx] += fx * scale
+            F[dy] += fy * scale
+        return F
+
+    def output_fn(U, Fint):
+        return float(np.abs(U).max()) if U.size else 0.0
+
+    stepping = LevelStepping(
+        h_start=ld.t_start, h_target=ld.t_end,
+        dh_initial=ld.dt_initial, dh_min=ld.dt_min, dh_max=ld.dt_max,
+        max_accepted_steps=ld.max_accepted_steps,
+    )
+    state0 = GPState.zeros(elements.shape[0], elem.n_gp)
+    U0 = np.zeros(n_dof)
+
+    seg = run_load_control(assembler, model, state0, U0, support_dofs,
+                           build_fext, output_fn, stepping,
+                           cfg.solver_options(), progress=progress)
+
+    result = AnalysisResult(seg.control, seg.load, seg.max_damage, seg.U_final,
+                            seg.state, seg.accepted, seg.rejected, seg.step_table)
+
+    out = Path(out_dir or cfg.output.dir) / cfg.name
+    summary = pp.save_summary(out, cfg, result,
+                              extra={"xi": xi, "n_nodes": int(nodes.shape[0]),
+                                     "n_elements": int(elements.shape[0]),
+                                     "t_start": ld.t_start, "t_end": ld.t_end})
+    if cfg.output.save_tables:
+        pp.save_tables(out, result, "t", "max_abs_u")
+    if cfg.output.save_figures:
+        pp.save_figures(out, nodes, elements, result, assembler, model,
+                        dpi=cfg.output.dpi, control_label="t", load_label="max|u| [mm]")
     return {"result": result, "summary": summary, "out_dir": str(out),
             "nodes": nodes, "elements": elements}

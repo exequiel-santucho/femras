@@ -35,8 +35,8 @@ Dos casos de referencia validados numéricamente:
 
 ```bash
 # Con Git (recomendado):
-git clone https://github.com/exequiel-santucho/rasfem.git
-cd rasfem
+git clone https://github.com/exequiel-santucho/femras.git
+cd femras
 
 # O descargar el ZIP desde GitHub → Code → Download ZIP
 # y descomprimir en una carpeta.
@@ -93,8 +93,11 @@ uvicorn api.main:app --reload
 La app tiene dos modos:
 - **Texto**: editá la ficha de datos como JSON y calculá.
 - **Canvas**: preprocesador gráfico — dibujás la geometría (polígono o viga),
-  colocás apoyos y cargas con herramientas, generás la malla visualmente y
-  exportás la ficha para ejecutar. Plantillas listas: *Presa* y *Viga*.
+  colocás **apoyos** (en vértices o en aristas completas) y **cargas** (puntuales,
+  o tracción distribuida sobre aristas) con herramientas, generás la malla
+  visualmente y exportás la ficha. Las cargas pueden ser **variables en el tiempo**
+  con un multiplicador λ(t) definido por tabla `(t, valor)` o por una función
+  (`10*sin(2*pi*t)`). Plantillas listas: *Presa* y *Viga*.
 
 ### Resultados validados
 
@@ -108,12 +111,13 @@ La app tiene dos modos:
 
 ```bash
 pip install pytest
-pytest tests/ -v          # 11 tests, ~15 s
+pytest tests/ -v          # 22 tests, ~15 s
 ```
 
-11 tests cubren: equivalencia constitutiva punto-a-punto con ambos scripts
+22 tests cubren: equivalencia constitutiva punto-a-punto con ambos scripts
 legados, regresión estructural de viga y presa, unitarios de elementos y leyes
-RAS. Ver [docs/manual_usuario_es.md § 12](docs/manual_usuario_es.md#12-tests-de-verificación)
+RAS, y apoyos/cargas en aristas + cargas variables en el tiempo (`test_edge_loads.py`).
+Ver [docs/manual_usuario_es.md § 12](docs/manual_usuario_es.md#12-tests-de-verificación)
 para la descripción detallada de cada test.
 
 ### Documentación
@@ -149,8 +153,8 @@ Two numerically validated reference cases:
 ### Quick install
 
 ```bash
-git clone https://github.com/exequiel-santucho/rasfem.git
-cd rasfem
+git clone https://github.com/exequiel-santucho/femras.git
+cd femras
 pip install -e .
 pip install -e ".[web]"       # local web app
 pip install -e ".[numba]"     # optional CPU JIT (Numba)
@@ -181,13 +185,16 @@ uvicorn api.main:app --reload
 ```
 
 Two modes: **Text** (edit config as JSON, run) and **Canvas** (graphical
-geometry editor — draw polygon or beam, place supports and loads, preview
-mesh, export to config). Starter templates: *Dam* and *Beam*.
+geometry editor — draw polygon or beam, place supports (on vertices or whole
+edges) and loads (point, or distributed edge traction), preview mesh, export to
+config). Loads can be **time-variable** via a λ(t) multiplier given by a
+`(t, value)` table or a function (`10*sin(2*pi*t)`). Starter templates: *Dam* and
+*Beam*.
 
 ### Tests
 
 ```bash
-pytest tests/ -v     # 11 tests, ~15 s
+pytest tests/ -v     # 22 tests, ~15 s
 ```
 
 See [docs/manual_usuario_en.md](docs/manual_usuario_en.md) for full documentation.

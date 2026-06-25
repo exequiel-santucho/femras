@@ -92,7 +92,7 @@ Hay dos formas de obtener el código. Elegí la que te resulte más cómoda.
 ### Opción A — Descargar como archivo ZIP (sin Git)
 
 1. Abrí el repositorio en el navegador:
-   `https://github.com/exequiel-santucho/rasfem`
+   `https://github.com/exequiel-santucho/femras`
 2. Hacé clic en el botón verde **"Code"** → **"Download ZIP"**.
 3. Descomprimí el archivo en una carpeta de tu elección, por ejemplo:
    - Windows: `C:\rasfem\`
@@ -106,8 +106,8 @@ Abrí una terminal, navegá a la carpeta donde querés guardar el proyecto y
 ejecutá:
 
 ```bash
-git clone https://github.com/exequiel-santucho/rasfem.git
-cd rasfem
+git clone https://github.com/exequiel-santucho/femras.git
+cd femras
 ```
 
 Con Git podés actualizar el código más adelante con un simple:
@@ -369,12 +369,38 @@ Con la plantilla **Presa** activa (o haciendo clic en el canvas vacío):
 Para agregar apoyos o cargas, elegí la herramienta correspondiente en la
 paleta y hacé clic cerca del vértice donde querés colocarlos:
 
-| Herramienta | Ícono | Tipo |
-|---|---|---|
-| Apoyo fijo | △ Fijo | Restringe ux y uy |
-| Rodillo X | ⊿ Rod.X | Restringe ux |
-| Rodillo Y | ◁ Rod.Y | Restringe uy |
-| Carga puntual | ↓ Carga | Flecha en -Y (editá fx/fy en el JSON exportado) |
+| Herramienta | Ícono | Atajo | Tipo |
+|---|---|---|---|
+| Apoyo fijo | △ Fijo | F | Restringe ux y uy en el **vértice** |
+| Rodillo X | ⊿ Rod.X | X | Restringe ux en el vértice (libre en X = `fix_x:false`) |
+| Rodillo Y | ◁ Rod.Y | Y | Restringe uy en el vértice |
+| Carga puntual | ↓ Carga | L | Fuerza nodal `(fx, fy)` con multiplicador λ(t) |
+| Cara hidráulica | 〜 Cara H. | E | Marca una arista como paramento con presión de agua |
+| Apoyo en arista | ⩒ Apoyo ar. | G | Restringe **toda** una arista (tipo elegible en el inspector) |
+| Carga en arista | ⇊ Carga ar. | B | Tracción distribuida normal+tangencial sobre una arista, con λ(t) |
+
+> **Vértice vs. arista.** Las herramientas de apoyo `F/X/Y` y la de carga `L`
+> actúan sobre **vértices** (nodo más cercano). **Apoyo en arista (G)** y
+> **Carga en arista (B)** actúan sobre la **arista completa**: al pasar el cursor
+> la arista se resalta y, al hacer clic, la condición se aplica a todos los nodos
+> de la malla sobre ella. Volver a hacer clic con el mismo tipo la quita (toggle).
+
+#### Condiciones variables en el tiempo — λ(t)
+
+Tanto la **carga en arista** como la **carga puntual** pueden variar en el tiempo
+mediante un multiplicador `λ(t)` que escala la carga de referencia. Al seleccionar
+la carga, el inspector permite definirlo de dos formas:
+
+- **Función f(t)**: una expresión, p.ej. `10*sin(2*pi*t)` o `0.5*(1-cos(pi*t))`
+  (funciones permitidas: `sin, cos, tan, exp, log, sqrt, abs, min, max, pow,
+  floor, ceil`, y las constantes `pi, e, tau`).
+- **Puntos (t, valor)**: una tabla, un par por línea (`0, 0` / `1, 10` …), con
+  interpolación lineal entre puntos.
+
+El inspector muestra una **vista previa** de la curva λ(t). El rango y el paso del
+pseudo-tiempo se fijan con los campos **t inicial / t final / Δt** del panel de
+geometría. La presencia de cualquier carga (arista o nodal) hace que la ficha se
+exporte con el modo `time_history` (ver § 7.5).
 
 Parámetros ajustables en el panel:
 
@@ -382,7 +408,10 @@ Parámetros ajustables en el panel:
   el caso de referencia de la presa.
 - **Espesor (mm)**: dimensión fuera del plano.
 - **Tipo problema**: deformación plana / tensión plana.
-- **Carga hidráulica**: activa la presión de agua sobre el paramento.
+- **Tiempo (t inicial / t final / Δt)**: rango y paso inicial del pseudo-tiempo
+  para cargas variables (`time_history`).
+- **Carga hidráulica**: activa la presión de agua sobre el paramento (herramienta
+  Cara H.).
 
 #### Modo Viga — formulario paramétrico
 
@@ -528,6 +557,38 @@ geometry:
 
 Los vértices se listan en orden **antihorario** desde el inferior izquierdo.
 
+### 7.4b Condiciones de contorno — apoyos (`supports`, `edge_supports`)
+
+Para geometrías de **polígono** los apoyos se definen explícitamente (en la viga
+se calculan a partir de `support_span`). Hay dos campos, ambos opcionales y de
+nivel superior en la ficha:
+
+**Apoyos puntuales** — se ubican en el nodo más cercano a `(x, y)`:
+
+```yaml
+supports:
+  - {x: 0.0,     y: 0.0, fix_x: true,  fix_y: true}   # empotrado
+  - {x: 70000.0, y: 0.0, fix_x: false, fix_y: true}   # rodillo (libre en X)
+```
+
+**Apoyos sobre aristas completas** — se aplican a todos los nodos de la malla
+sobre el segmento `[p1, p2]`:
+
+```yaml
+edge_supports:
+  - vertices: [[0.0, 0.0], [70000.0, 0.0]]   # arista inferior
+    fix_x: true
+    fix_y: true
+```
+
+Equivalencias: `fix_x:true, fix_y:true` → empotrado; `fix_x:false, fix_y:true` →
+rodillo libre en X; `fix_x:true, fix_y:false` → rodillo libre en Y.
+
+> **Compatibilidad.** Si `edge_supports` está vacío o ausente, el polígono usa el
+> comportamiento histórico: **todos los nodos de la base (y = 0) empotrados**
+> (así, los ejemplos `presa_ras.yaml` existentes no cambian). Los apoyos
+> puntuales de `supports` se aplican **después** y pueden sobrescribir DOFs.
+
 ### 7.5 Sección `loading`
 
 **Control por desplazamiento** (ensayo de viga):
@@ -558,6 +619,49 @@ loading:
   dh_max: 500.0
   max_accepted_steps: 600
 ```
+
+**Historia temporal** (`time_history`) — cargas distribuidas sobre aristas y/o
+fuerzas nodales, variables en el tiempo mediante un multiplicador `λ(t)`. El
+parámetro de control es un pseudo-tiempo `t` que avanza de `t_start` a `t_end`:
+
+```yaml
+loading:
+  mode: time_history
+  t_start: 0.0
+  t_end:   1.0
+  dt_initial: 0.05      # paso inicial del pseudo-tiempo
+  dt_min: 0.0025
+  dt_max: 0.10
+  max_accepted_steps: 600
+  self_weight: false    # incluir peso propio constante
+  gamma_c: 2.40e-5      # peso específico del hormigón [N/mm³] (si self_weight)
+
+  # Cargas distribuidas sobre aristas (tracción normal + tangencial)
+  edge_loads:
+    - vertices: [[0.0, 0.0], [0.0, 103000.0]]  # arista [p1, p2]
+      p_normal: 0.01           # presión de referencia normal (entrante +)
+      p_tangential: 0.0        # tracción de referencia tangencial
+      multiplier: {expr: "0.5*(1-cos(pi*t))"}   # λ(t) por expresión
+
+  # Fuerzas concentradas en el nodo más cercano a (x, y)
+  point_loads:
+    - x: 35000.0
+      y: 103000.0
+      fx: 0.0
+      fy: -100.0               # componentes de referencia [N]
+      multiplier: {points: [[0, 0], [0.5, 1], [1, 0]]}   # λ(t) por tabla
+```
+
+El multiplicador `multiplier` admite `{expr: "..."}` (expresión de `t`) o
+`{points: [[t, valor], ...]}` (tabla con interpolación lineal). Si se omite, vale
+1.0 (carga estática de referencia). Las cargas de arista usan presión **normal**
+(positiva hacia el interior) y **tangencial** (según `p1→p2`); las nodales usan
+componentes globales `(fx, fy)`.
+
+> **Esto NO es un análisis dinámico.** `λ(t)` es un *factor de carga* y el avance
+> es cuasi-estático (sin inercia). Sirve para historias de carga arbitrarias
+> (rampas, ciclos, etc.). Requiere geometría `polygon` y los apoyos se toman de
+> `edge_supports`/`supports` (§ 7.4b).
 
 ### 7.6 Sección `service` (etapa de vida útil RAS, opcional)
 
@@ -855,8 +959,9 @@ tests/test_unit_model.py::test_t3_b_matrix_area                     PASSED
 tests/test_unit_model.py::test_q4_unit_square_jacobian              PASSED
 tests/test_viga_regression.py::test_beam_snapshot                   PASSED
 tests/test_viga_regression.py::test_beam_monotonic_damage           PASSED
+tests/test_edge_loads.py::...  (10 tests)                           PASSED
 
-11 passed in ~15s
+22 passed in ~15s
 ```
 
 Para correr solo los tests rápidos (sin los de la presa, que tardan ~15 s):
@@ -897,6 +1002,16 @@ pytest tests/ -v -m "not slow"
 |---|---|---|
 | `test_beam_snapshot` | Análisis MEF completo de la **viga entallada** (malla reducida 40×10): número de pasos aceptados (41), carga máxima (~1600 N ±5), y daño final en rango [0.85, 0.95]. Detecta cambios globales en el comportamiento de la viga. | Snapshot determinístico |
 | `test_beam_monotonic_damage` | El daño en la viga es no decreciente en todos los pasos (irreversibilidad). | — |
+
+#### Módulo `test_edge_loads.py` — Apoyos/cargas en aristas y cargas variables en el tiempo
+
+| Test | Qué verifica |
+|---|---|
+| `test_timefunc_*` (5) | El multiplicador λ(t): constante por defecto, interpolación de tabla con *clamp* en los extremos, evaluación de expresiones (`10*sin(2*pi*t)`), **rechazo de nombres no permitidos** (sandbox: `__import__` lanza error), y precedencia de `expr` sobre `points`. |
+| `test_edge_traction_*` (3) | La fuerza nodal consistente de `edge_traction_force`: componente **normal** repartida mitad/mitad, componente **tangencial** según el versor de la arista, y arista de longitud cero → fuerza nula. |
+| `test_nodes_on_segment_bottom_edge` | `nodes_on_segment` encuentra ≥2 nodos sobre la arista inferior de un cuadrado y todos tienen y ≈ 0 (misma tolerancia que `face_boundary_edges`). |
+| `test_time_history_runs_and_loads_grow` | Corrida completa en modo `time_history` (apoyo en arista de base + presión en arista superior con λ(t)=t): pasos aceptados > 0, valores finitos y respuesta no decreciente. |
+| `test_time_history_nodal_point_load` | Fuerza puntual nodal con λ(t)=t sobre un cuadrado con base empotrada: la corrida converge y desarrolla desplazamiento no nulo. |
 
 ### 12.3 Significado de los resultados de referencia validados
 

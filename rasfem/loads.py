@@ -51,6 +51,30 @@ def hydro_edge_force(p1, p2, Hwater, gamma_w, thickness, face_normal=None):
     return fe
 
 
+def edge_traction_force(p1, p2, p_normal, p_tangential, thickness, face_normal):
+    """Consistent nodal force of a uniform traction on a linear edge -> (4,).
+
+    ``p_normal`` acts along ``face_normal`` (inward unit normal); ``p_tangential``
+    along the edge tangent (p1 -> p2). The traction is constant along the edge,
+    so the consistent load splits equally between the two end nodes.
+    Order: [fx_i, fy_i, fx_j, fy_j].
+    """
+    p1 = np.asarray(p1, float)
+    p2 = np.asarray(p2, float)
+    t_vec = p2 - p1
+    L = float(np.linalg.norm(t_vec))
+    if L < 1e-15:
+        return np.zeros(4)
+    tang = t_vec / L
+    n = np.asarray(face_normal, float)
+    traction = p_normal * n + p_tangential * tang
+    fnode = traction * thickness * (L / 2.0)
+    fe = np.zeros(4)
+    fe[0:2] = fnode
+    fe[2:4] = fnode
+    return fe
+
+
 def assemble_external_force(nodes, elem, up_edges, Hwater, *, gamma_c, gamma_w,
                             thickness, face_normal=None):
     """Global external force = self weight + hydrostatic thrust at level Hwater."""

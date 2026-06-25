@@ -139,4 +139,58 @@ no se usa este truco.
   - *carga / nivel de agua* (presa): se escala la fuerza externa (peso propio +
     empuje hidrostático); bajo control de carga la solución **no puede pasar el
     pico**, por lo que el último nivel convergido es el nivel de fallo.
+  - *historia temporal* (`time_history`): la fuerza externa se construye por
+    superposición de cargas variables en el tiempo (sección 9) y el parámetro
+    de control es un **pseudo-tiempo** $t$ que avanza de $t_0$ a $t_\text{end}$
+    con paso adaptativo. Reutiliza el mismo control de carga.
+
+## 9. Cargas externas / External loads
+
+El vector de fuerzas externas en un instante de control $t$ se ensambla por
+superposición:
+
+$$
+\mathbf{F}_\text{ext}(t) = \mathbf{F}_\text{peso} \;+\; \sum_k \lambda_k(t)\,\mathbf{F}^{(k)}_\text{arista} \;+\; \sum_m \lambda_m(t)\,\mathbf{f}^{(m)}_\text{nodal}
+$$
+
+### 9.1 Tracción distribuida sobre arista / Distributed edge traction
+
+Sobre una arista de borde $[\mathbf{p}_1,\mathbf{p}_2]$ se aplica una tracción
+**uniforme** con componente normal $p_n$ (positiva hacia el interior, según la
+normal entrante $\mathbf{n}$) y tangencial $p_t$ (según el versor tangente
+$\mathbf{t}=(\mathbf{p}_2-\mathbf{p}_1)/L$):
+
+$$
+\mathbf{q} = p_n\,\mathbf{n} + p_t\,\mathbf{t}
+$$
+
+Para una arista lineal con carga constante, la fuerza nodal consistente reparte
+mitad y mitad entre los dos nodos extremos (espesor $b$, longitud $L$):
+
+$$
+\mathbf{f}_i = \mathbf{f}_j = \tfrac{1}{2}\,\mathbf{q}\,b\,L
+$$
+
+A diferencia del empuje hidrostático (que varía con la profundidad bajo el nivel
+de agua), aquí la tracción de referencia es constante a lo largo de la arista; su
+variación en el tiempo la aporta el multiplicador $\lambda(t)$.
+
+### 9.2 Fuerza puntual nodal / Nodal point force
+
+Una carga concentrada $(f_x, f_y)$ se aplica en el **nodo más cercano** a un punto
+$(x,y)$ dado (igual criterio que los apoyos puntuales).
+
+### 9.3 Multiplicador temporal $\lambda(t)$ / Time multiplier
+
+Cada carga lleva un multiplicador escalar $\lambda(t)$ que escala su magnitud de
+referencia. Se define de dos maneras:
+
+- **Tabla** de puntos $[t, \lambda]$ con interpolación lineal por tramos (y
+  *clamp* a los extremos fuera del rango).
+- **Expresión** función de $t$, evaluada en un entorno acotado (lista blanca:
+  `sin, cos, exp, sqrt, pi, …`), por ejemplo `10*sin(2*pi*t)`.
+
+Como $\lambda(t)$ es un **factor de carga** y el avance es cuasi-estático, este
+esquema representa historias de carga (cíclicas, rampas, etc.) sin efectos
+dinámicos/inerciales.
 

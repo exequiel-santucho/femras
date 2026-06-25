@@ -88,7 +88,7 @@ Choose the option that suits you best.
 ### Option A — Download as ZIP (no Git needed)
 
 1. Open the repository in your browser:
-   `https://github.com/exequiel-santucho/rasfem`
+   `https://github.com/exequiel-santucho/femras`
 2. Click the green **"Code"** button → **"Download ZIP"**.
 3. Extract the ZIP to a folder of your choice, for example:
    - Windows: `C:\rasfem\`
@@ -101,8 +101,8 @@ Choose the option that suits you best.
 Open a terminal, navigate to where you want to store the project, and run:
 
 ```bash
-git clone https://github.com/exequiel-santucho/rasfem.git
-cd rasfem
+git clone https://github.com/exequiel-santucho/femras.git
+cd femras
 ```
 
 To update the code later:
@@ -364,19 +364,47 @@ With the **Dam** template (or on a blank canvas):
 To add supports or loads, select the corresponding tool and click near the
 target vertex:
 
-| Tool | Icon | Type |
-|---|---|---|
-| Fixed support | △ Fixed | Restrains ux and uy |
-| X roller | ⊿ Rol.X | Restrains ux |
-| Y roller | ◁ Rol.Y | Restrains uy |
-| Point load | ↓ Load | Arrow in –Y direction (edit fx/fy in exported JSON) |
+| Tool | Icon | Key | Type |
+|---|---|---|---|
+| Fixed support | △ Fixed | F | Restrains ux and uy at the **vertex** |
+| X roller | ⊿ Rol.X | X | Restrains ux at the vertex (free in X = `fix_x:false`) |
+| Y roller | ◁ Rol.Y | Y | Restrains uy at the vertex |
+| Point load | ↓ Load | L | Nodal force `(fx, fy)` with time multiplier λ(t) |
+| Hydraulic face | 〜 H.Face | E | Marks an edge as the water-pressure face |
+| Edge support | ⩒ Edge sup. | G | Restrains a **whole edge** (type chosen in the inspector) |
+| Edge load | ⇊ Edge load | B | Distributed normal+tangential traction on an edge, with λ(t) |
+
+> **Vertex vs. edge.** The `F/X/Y` support tools and the `L` load tool act on
+> **vertices** (nearest node). **Edge support (G)** and **Edge load (B)** act on
+> the **whole edge**: hovering highlights the edge and clicking applies the
+> condition to every mesh node on it. Clicking again with the same type removes
+> it (toggle).
+
+#### Time-variable conditions — λ(t)
+
+Both the **edge load** and the **point load** can vary in time through a
+multiplier `λ(t)` that scales the reference load. When you select the load, the
+inspector lets you define it two ways:
+
+- **Function f(t)**: an expression, e.g. `10*sin(2*pi*t)` or `0.5*(1-cos(pi*t))`
+  (allowed functions: `sin, cos, tan, exp, log, sqrt, abs, min, max, pow, floor,
+  ceil`, plus constants `pi, e, tau`).
+- **Points (t, value)**: a table, one pair per line (`0, 0` / `1, 10` …), with
+  linear interpolation between points.
+
+The inspector shows a **preview** of the λ(t) curve. The pseudo-time range and
+step are set with the **t start / t end / Δt** fields in the geometry panel. The
+presence of any load (edge or nodal) makes the config export with the
+`time_history` mode (see § 7.5).
 
 Adjustable parameters in the panel:
 
 - **Mesh size (mm)**: T3 element size. Use 2000 to match the dam reference case.
 - **Thickness (mm)**: out-of-plane dimension.
 - **Problem type**: plane strain / plane stress.
-- **Hydraulic load**: enables water pressure on the upstream face.
+- **Time (t start / t end / Δt)**: pseudo-time range and initial step for
+  time-variable loads (`time_history`).
+- **Hydraulic load**: enables water pressure on the upstream face (H.Face tool).
 
 #### Beam mode — parametric form
 
@@ -520,6 +548,36 @@ geometry:
 
 Vertices are listed **counter-clockwise** starting from the bottom-left corner.
 
+### 7.4b Boundary conditions — supports (`supports`, `edge_supports`)
+
+For **polygon** geometries the supports are defined explicitly (the beam derives
+them from `support_span`). There are two optional top-level fields:
+
+**Point supports** — placed at the node nearest to `(x, y)`:
+
+```yaml
+supports:
+  - {x: 0.0,     y: 0.0, fix_x: true,  fix_y: true}   # fixed
+  - {x: 70000.0, y: 0.0, fix_x: false, fix_y: true}   # roller (free in X)
+```
+
+**Whole-edge supports** — applied to every mesh node on segment `[p1, p2]`:
+
+```yaml
+edge_supports:
+  - vertices: [[0.0, 0.0], [70000.0, 0.0]]   # bottom edge
+    fix_x: true
+    fix_y: true
+```
+
+Equivalences: `fix_x:true, fix_y:true` → fixed; `fix_x:false, fix_y:true` →
+roller free in X; `fix_x:true, fix_y:false` → roller free in Y.
+
+> **Backward compatibility.** If `edge_supports` is empty or absent, the polygon
+> uses the legacy behaviour: **all base nodes (y = 0) fixed** (so existing
+> `presa_ras.yaml` examples are unchanged). Point `supports` are applied **after**
+> and may override individual DOFs.
+
 ### 7.5 `loading` section
 
 **Displacement control** (beam test):
@@ -550,6 +608,49 @@ loading:
   dh_max: 500.0
   max_accepted_steps: 600
 ```
+
+**Time history** (`time_history`) — distributed edge loads and/or nodal forces,
+time-variable through a multiplier `λ(t)`. The control parameter is a pseudo-time
+`t` advancing from `t_start` to `t_end`:
+
+```yaml
+loading:
+  mode: time_history
+  t_start: 0.0
+  t_end:   1.0
+  dt_initial: 0.05      # initial pseudo-time step
+  dt_min: 0.0025
+  dt_max: 0.10
+  max_accepted_steps: 600
+  self_weight: false    # include constant self-weight
+  gamma_c: 2.40e-5      # concrete unit weight [N/mm³] (if self_weight)
+
+  # Distributed edge tractions (normal + tangential)
+  edge_loads:
+    - vertices: [[0.0, 0.0], [0.0, 103000.0]]  # edge [p1, p2]
+      p_normal: 0.01           # reference normal pressure (inward +)
+      p_tangential: 0.0        # reference tangential traction
+      multiplier: {expr: "0.5*(1-cos(pi*t))"}   # λ(t) by expression
+
+  # Concentrated forces at the node nearest to (x, y)
+  point_loads:
+    - x: 35000.0
+      y: 103000.0
+      fx: 0.0
+      fy: -100.0               # reference components [N]
+      multiplier: {points: [[0, 0], [0.5, 1], [1, 0]]}   # λ(t) by table
+```
+
+`multiplier` accepts `{expr: "..."}` (an expression of `t`) or
+`{points: [[t, value], ...]}` (a table with linear interpolation). If omitted it
+is 1.0 (static reference load). Edge loads use **normal** pressure (positive
+inward) and **tangential** traction (along `p1→p2`); nodal loads use global
+components `(fx, fy)`.
+
+> **This is NOT a dynamic analysis.** `λ(t)` is a *load factor* and the march is
+> quasi-static (no inertia). It captures arbitrary load histories (ramps, cycles,
+> …). It requires a `polygon` geometry, and supports come from
+> `edge_supports`/`supports` (§ 7.4b).
 
 ### 7.6 `service` section (optional, dam only)
 
@@ -760,8 +861,9 @@ tests/test_unit_model.py::test_t3_b_matrix_area                       PASSED
 tests/test_unit_model.py::test_q4_unit_square_jacobian                PASSED
 tests/test_viga_regression.py::test_beam_snapshot                     PASSED
 tests/test_viga_regression.py::test_beam_monotonic_damage             PASSED
+tests/test_edge_loads.py::...  (10 tests)                             PASSED
 
-11 passed in ~15 s
+22 passed in ~15 s
 ```
 
 To run only the fast tests (skip the dam structural tests):
@@ -802,6 +904,16 @@ pytest tests/ -v -m "not slow"
 |---|---|---|
 | `test_beam_snapshot` | Full FEM analysis of the **notched beam** (reduced 40×10 mesh): accepted step count (41), peak load (~1600 N ±5), final damage in [0.85, 0.95]. Catches any global change in beam behaviour. | Deterministic snapshot |
 | `test_beam_monotonic_damage` | Beam damage is non-decreasing in every step (irreversibility). | — |
+
+#### `test_edge_loads.py` — Edge supports/loads and time-variable loads
+
+| Test | What it checks |
+|---|---|
+| `test_timefunc_*` (5) | The λ(t) multiplier: constant by default, table interpolation with end **clamping**, expression evaluation (`10*sin(2*pi*t)`), **rejection of disallowed names** (sandbox: `__import__` raises), and `expr` taking precedence over `points`. |
+| `test_edge_traction_*` (3) | Consistent nodal force of `edge_traction_force`: **normal** component split half/half, **tangential** component along the edge tangent, and zero-length edge → zero force. |
+| `test_nodes_on_segment_bottom_edge` | `nodes_on_segment` finds ≥2 nodes on a square's bottom edge, all with y ≈ 0 (same tolerance as `face_boundary_edges`). |
+| `test_time_history_runs_and_loads_grow` | Full `time_history` run (base edge support + top-edge pressure with λ(t)=t): accepted steps > 0, finite values, non-decreasing response. |
+| `test_time_history_nodal_point_load` | Nodal point force with λ(t)=t on a base-fixed square: the run converges and develops a nonzero displacement. |
 
 ### 12.3 What the reference values mean
 
