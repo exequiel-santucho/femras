@@ -16,6 +16,8 @@
     <div class="mode-tabs">
       <button class="mode-tab"        data-view="text"   data-i18n="mode_text">Ficha de datos</button>
       <button class="mode-tab active" data-view="canvas" data-i18n="mode_canvas">Modelo</button>
+      <button class="mode-tab"        data-view="output" id="tab-output"
+              data-i18n="mode_output">Salida</button>
     </div>
     <div class="spacer"></div>
     <button class="ghost" id="lang">EN</button>
@@ -155,50 +157,6 @@
             </defs>
             <g id="ed-world" transform="scale(1,-1)"></g>
           </svg>
-
-          <!-- ══════ Results viewer overlay (over the canvas) ══════ -->
-          <div id="results-viewer" style="display:none">
-            <div id="rv-toolbar">
-              <div class="rv-fields">
-                <button class="rv-field active" data-field="deformed"
-                        data-i18n="canvas.fld_deformed">Deformada</button>
-                <button class="rv-field" data-field="sigma_x">σx</button>
-                <button class="rv-field" data-field="sigma_y">σy</button>
-                <button class="rv-field" data-field="damage"
-                        data-i18n="canvas.fld_damage">Daño</button>
-              </div>
-              <div class="rv-ctl">
-                <label data-i18n="canvas.rv_time">Instante</label>
-                <input type="range" id="rv-time" min="0" max="0" value="0" step="1">
-                <span id="rv-time-lbl" class="rv-num">—</span>
-              </div>
-              <div class="rv-ctl" id="rv-scale-wrap">
-                <label data-i18n="canvas.rv_scale">Escala ×</label>
-                <input type="number" id="rv-scale" value="1" step="0.5" min="0"
-                       style="width:64px">
-                <button class="ghost sm" id="rv-scale-auto"
-                        data-i18n="canvas.rv_auto">Auto</button>
-              </div>
-              <div class="spacer"></div>
-              <button class="ghost sm" id="rv-toggle-curves"
-                      data-i18n="canvas.rv_curves">Curvas</button>
-              <button class="ghost sm" id="rv-close"
-                      data-i18n="canvas.rv_close">✕ Cerrar</button>
-            </div>
-            <div id="rv-body">
-              <svg id="res-svg" preserveAspectRatio="xMidYMid meet">
-                <g id="res-world" transform="scale(1,-1)"></g>
-              </svg>
-              <div id="rv-colorbar"></div>
-              <div id="rv-curves" style="display:none">
-                <div class="rv-curve-title" data-i18n="canvas.rv_loaddisp">Carga–desplazamiento</div>
-                <div id="rv-curve-load"></div>
-                <div class="rv-curve-title" data-i18n="canvas.rv_dmgevol">Evolución del daño máximo</div>
-                <div id="rv-curve-dmg"></div>
-              </div>
-            </div>
-            <div id="rv-info"></div>
-          </div>
         </div>
         <!-- Status bar -->
         <div id="canvas-statusbar">
@@ -429,6 +387,57 @@
       </aside><!-- end right-panel -->
     </div><!-- end canvas-layout -->
 
+    <!-- ═══════════════════ OUTPUT MODE (Salida) ═══════════════════ -->
+    <div id="output-layout">
+      <!-- Empty state shown until a run produces results -->
+      <div id="rv-empty" data-i18n="canvas.rv_empty">
+        Todavía no hay resultados. Andá a <b>Modelo</b> y hacé clic en <b>Calcular</b>.
+      </div>
+
+      <!-- Results viewer -->
+      <div id="results-viewer" style="display:none">
+        <div id="rv-toolbar">
+          <div class="rv-fields">
+            <button class="rv-field active" data-field="deformed"
+                    data-i18n="canvas.fld_deformed">Deformada</button>
+            <button class="rv-field" data-field="sigma_x">σx</button>
+            <button class="rv-field" data-field="sigma_y">σy</button>
+            <button class="rv-field" data-field="damage"
+                    data-i18n="canvas.fld_damage">Daño</button>
+          </div>
+          <div class="rv-ctl">
+            <label data-i18n="canvas.rv_time">Instante</label>
+            <input type="range" id="rv-time" min="0" max="0" value="0" step="1">
+            <span id="rv-time-lbl" class="rv-num">—</span>
+          </div>
+          <div class="rv-ctl" id="rv-scale-wrap">
+            <label data-i18n="canvas.rv_scale">Escala ×</label>
+            <input type="number" id="rv-scale" value="1" step="0.5" min="0"
+                   style="width:64px">
+            <button class="ghost sm" id="rv-scale-auto"
+                    data-i18n="canvas.rv_auto">Auto</button>
+          </div>
+          <div class="spacer"></div>
+          <span id="rv-casename" class="rv-num" style="min-width:0"></span>
+          <button class="ghost sm" id="rv-toggle-curves"
+                  data-i18n="canvas.rv_curves">Curvas</button>
+        </div>
+        <div id="rv-body">
+          <svg id="res-svg" preserveAspectRatio="xMidYMid meet">
+            <g id="res-world" transform="scale(1,-1)"></g>
+          </svg>
+          <div id="rv-colorbar"></div>
+          <div id="rv-curves" style="display:none">
+            <div class="rv-curve-title" data-i18n="canvas.rv_loaddisp">Carga–desplazamiento</div>
+            <div id="rv-curve-load"></div>
+            <div class="rv-curve-title" data-i18n="canvas.rv_dmgevol">Evolución del daño máximo</div>
+            <div id="rv-curve-dmg"></div>
+          </div>
+        </div>
+        <div id="rv-info"></div>
+      </div>
+    </div><!-- end output-layout -->
+
   </div><!-- end #main -->
 </div><!-- end #app -->
 
@@ -478,10 +487,10 @@ document.getElementById("ed-run-btn").addEventListener("click", async () => {
     panel.classList.add("expanded");
     showSummaryIn(data.summary, "canvas-summary");
     _renderResultFiles(data);
-    // Hand the full payload to the interactive viewer and open it
+    // Hand the full payload to the interactive viewer and switch to the Salida tab
     if (window.initResultsViewer) {
       initResultsViewer(data);
-      openResultsViewer();
+      switchView("output");
     }
     _setEdRunStatus((lang === "es" ? "Listo. Guardado en " : "Done. Saved to ")
                     + (data.result_dir || ""));
@@ -502,7 +511,7 @@ function _renderResultFiles(data) {
 }
 
 document.getElementById("btn-open-viewer").addEventListener("click", () => {
-  if (window.openResultsViewer) openResultsViewer();
+  switchView("output");
 });
 
 // ── Descargar ficha YAML ──────────────────────────────────────────────────────

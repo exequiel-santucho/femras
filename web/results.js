@@ -4,10 +4,11 @@
  * (sigma_x, sigma_y, damage) at any captured time instant, with an adjustable
  * deformation scale factor, plus the load–displacement and max-damage curves.
  *
- * Public API (called from index.html):
- *   initResultsViewer(payload)   store data + build UI
- *   openResultsViewer()          show overlay
- *   closeResultsViewer()         hide overlay
+ * Lives in the "Salida" (Output) tab — switchView("output") shows it.
+ *
+ * Public API (called from index.html / app.js):
+ *   initResultsViewer(payload)   store data + populate the viewer
+ *   onShowOutputTab()            re-render + resize when the tab becomes visible
  *
  * Payload shape (from /api/run → fields):
  *   { nodes:[[x,y]…], elements:[[i,j,k]…],
@@ -241,6 +242,20 @@ function _interp(xs, ys, x) {
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
+function _showViewer(show) {
+  const v = document.getElementById("results-viewer");
+  const e = document.getElementById("rv-empty");
+  if (v) v.style.display = show ? "flex" : "none";
+  if (e) e.style.display = show ? "none" : "flex";
+}
+
+function _resizeCurves() {
+  setTimeout(() => {
+    try { Plotly.Plots.resize("rv-curve-load"); Plotly.Plots.resize("rv-curve-dmg"); }
+    catch (e) {}
+  }, 50);
+}
+
 function initResultsViewer(payload) {
   if (!payload || !payload.fields) return;
   _rv.data = payload.fields;
@@ -256,28 +271,23 @@ function initResultsViewer(payload) {
   slider.max = _rv.data.snapshots.length - 1;
   slider.value = _rv.snap;
 
+  const cn = document.getElementById("rv-casename");
+  if (cn) cn.textContent = payload.result_dir ? `📁 ${payload.result_dir}` : "";
+
   document.querySelectorAll(".rv-field").forEach(b =>
     b.classList.toggle("active", b.dataset.field === _rv.field));
 
+  _showViewer(true);
   _render();
   _plotCurves();
 }
 
-function openResultsViewer() {
-  const v = document.getElementById("results-viewer");
-  if (!v || !_rv.data) return;
-  v.style.display = "flex";
+// Called by switchView("output") — re-render + resize once the tab is visible.
+function onShowOutputTab() {
+  if (!_rv.data) { _showViewer(false); return; }
+  _showViewer(true);
   _render();
-  // Plotly needs a resize once visible
-  setTimeout(() => {
-    try { Plotly.Plots.resize("rv-curve-load"); Plotly.Plots.resize("rv-curve-dmg"); }
-    catch (e) {}
-  }, 50);
-}
-
-function closeResultsViewer() {
-  const v = document.getElementById("results-viewer");
-  if (v) v.style.display = "none";
+  _resizeCurves();
 }
 
 // ── Wire up controls ─────────────────────────────────────────────────────────
@@ -317,16 +327,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const c = document.getElementById("rv-curves");
     const show = c.style.display === "none";
     c.style.display = show ? "flex" : "none";
-    if (show) setTimeout(() => {
-      try { Plotly.Plots.resize("rv-curve-load"); Plotly.Plots.resize("rv-curve-dmg"); }
-      catch (e) {}
-    }, 50);
+    if (show) _resizeCurves();
   });
-
-  const close = document.getElementById("rv-close");
-  if (close) close.addEventListener("click", closeResultsViewer);
 });
 
 window.initResultsViewer = initResultsViewer;
-window.openResultsViewer = openResultsViewer;
-window.closeResultsViewer = closeResultsViewer;
+window.onShowOutputTab = onShowOutputTab;

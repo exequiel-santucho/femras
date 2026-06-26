@@ -512,18 +512,27 @@ header .spacer { flex: 1; }
 
 #result-files a { display: inline-block; color: var(--accent); margin: 1px 0; }
 
-/* ── Results viewer overlay ───────────────────────────────────────────────── */
-#ed-canvas-wrap { position: relative; }
+/* ── Output tab (Salida) ──────────────────────────────────────────────────── */
+#output-layout { display: none; height: 100%; }
+#output-layout.active { display: flex; flex-direction: column; }
+
+#rv-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 24px;
+}
 
 #results-viewer {
-  position: absolute;
-  inset: 6px;
-  z-index: 20;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 

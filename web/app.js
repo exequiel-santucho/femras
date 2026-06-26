@@ -18,6 +18,7 @@ const I18N = {
     // Header
     mode_text:   "Ficha de datos",
     mode_canvas: "Modelo",
+    mode_output: "Salida",
     // Canvas tools
     canvas: {
       tool_vertex:   "Vértice",
@@ -101,7 +102,7 @@ const I18N = {
       lbl_age:      "Edad (días)",
       lbl_epsinf:   "ε∞ vol.",
       sec_results:  "Resultados",
-      btn_viewer:   "Ver gráficos ▸",
+      btn_viewer:   "Ir a Salida ▸",
       fld_deformed: "Deformada",
       fld_damage:   "Daño",
       rv_time:      "Instante",
@@ -111,6 +112,7 @@ const I18N = {
       rv_close:     "✕ Cerrar",
       rv_loaddisp:  "Carga–desplazamiento",
       rv_dmgevol:   "Evolución del daño máximo",
+      rv_empty:     "Todavía no hay resultados. Andá a Modelo y hacé clic en Calcular.",
       // Status
       st_template: "Plantilla cargada. Editá los vértices y generá la malla.",
       st_closed:   "Polígono cerrado. Agregá apoyos y cargas.",
@@ -134,6 +136,7 @@ const I18N = {
     err:       "Error",
     mode_text:   "Text",
     mode_canvas: "Canvas",
+    mode_output: "Output",
     canvas: {
       tool_vertex:   "Vertex",
       tool_fixed:    "Fixed",
@@ -215,7 +218,7 @@ const I18N = {
       lbl_age:      "Age (days)",
       lbl_epsinf:   "ε∞ vol.",
       sec_results:  "Results",
-      btn_viewer:   "View plots ▸",
+      btn_viewer:   "Go to Output ▸",
       fld_deformed: "Deformed",
       fld_damage:   "Damage",
       rv_time:      "Instant",
@@ -225,6 +228,7 @@ const I18N = {
       rv_close:     "✕ Close",
       rv_loaddisp:  "Load–displacement",
       rv_dmgevol:   "Max-damage evolution",
+      rv_empty:     "No results yet. Go to Model and click Run.",
       st_template: "Template loaded. Edit vertices and generate the mesh.",
       st_closed:   "Polygon closed. Add supports and loads.",
       st_open:     "Double-click to close the polygon.",
@@ -369,15 +373,13 @@ document.addEventListener("click", e => {
 function switchView(view) {
   const tl = $("text-layout");
   const cl = $("canvas-layout");
-  if (view === "text") {
-    tl.classList.remove("hidden");
-    cl.classList.remove("active");
-  } else {
-    tl.classList.add("hidden");
-    cl.classList.add("active");
-  }
+  const ol = $("output-layout");
+  tl.classList.toggle("hidden", view !== "text");
+  cl.classList.toggle("active", view === "canvas");
+  if (ol) ol.classList.toggle("active", view === "output");
   document.querySelectorAll(".mode-tab").forEach(b =>
     b.classList.toggle("active", b.dataset.view === view));
+  if (view === "output" && window.onShowOutputTab) window.onShowOutputTab();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
