@@ -23,13 +23,11 @@ coverage.xml
 
 # Results (generated at runtime)
 resultados_femras/
-resultados_rasfem/
 examples/legacy/temp_sana/
 examples/legacy/temp*/
 
 # User working folders created with "femras examples <dir>"
 examples_femras/
-examples_rasfem/
 mis_ejemplos/
 my_examples/
 
